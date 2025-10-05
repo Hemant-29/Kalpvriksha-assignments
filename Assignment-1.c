@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define limit 100
+#define LIMIT 100
 
-int checkValid(char ch)
+int isValidCharacter(char ch)
 {
   char valids[15] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', '*', '/', ' '};
   for (int i = 0; i < 15; i++)
@@ -24,107 +24,109 @@ int isOperator(char ch)
   return 0;
 }
 
-int isNumber(char ch)
+int isOperandCharacter(char ch)
 {
-  if (ch >= '0' && ch <= '9' || ch == ' ')
-  {
-    return 1;
-  }
-  return 0;
+  return (ch >= '0' && ch <= '9') || (ch == ' ');
 }
 
-int performOperation(char expression[limit], int length, char op1, char op2)
+int performOperation(char expression[LIMIT], int length, char op1, char op2)
 {
 
-  int st_index = 0;
-  int end_index = 0;
+  int startIndex = 0;
+  int endIndex = 0;
   char operator= '\0';
-  int op_index = 0;
+  int operatorIndex = 0;
 
-  // ___Traversing the whole expression string
   for (int i = 0; i < length; i++)
   {
-    // When we come across a * or / operator
     if (expression[i] == op1 || expression[i] == op2)
     {
       operator= expression[i];
-      op_index = i;
-      // Then we find the 'starting index' and the 'ending index'
+      operatorIndex = i;
 
       // finding starting index (go left until non-number)
-      int left_end = i - 1;
-      while (left_end >= 0 && isNumber(expression[left_end]))
-        left_end--;
-      st_index = left_end + 1;
+      int leftEnd = i - 1;
+      while (leftEnd >= 0 && isOperandCharacter(expression[leftEnd]))
+      {
+        leftEnd--;
+      }
+      startIndex = leftEnd + 1;
 
       // finding ending index (go right until non-number)
-      int right_end = i + 1;
-      while (right_end < length && isNumber(expression[right_end]))
-        right_end++;
-      end_index = right_end - 1;
+      int rightEnd = i + 1;
+      while (rightEnd < length && isOperandCharacter(expression[rightEnd]))
+      {
+        rightEnd++;
+      }
+      endIndex = rightEnd - 1;
 
       break;
     }
   }
 
-  // ___Calculating the operation and replacing the value
-
   // Finding the num1 and num2
-  char num1[limit] = "";
-  int n1idx = 0;
-  for (int k = st_index; k < op_index; k++)
-  {
-    if (expression[k] != ' ')
-      num1[n1idx++] = expression[k]; // Skipping any whitespaces
-  }
-  num1[n1idx] = '\0';
-
-  char num2[limit] = "";
-  int n2idx = 0;
-  for (int k = op_index + 1; k <= end_index; k++)
+  char num1[LIMIT] = "";
+  int n1Index = 0;
+  for (int k = startIndex; k < operatorIndex; k++)
   {
     if (expression[k] != ' ')
     {
-      num2[n2idx++] = expression[k];
+      num1[n1Index] = expression[k]; // Skipping any whitespaces
+      n1Index++;
     }
   }
-  num2[n2idx] = '\0';
+  num1[n1Index] = '\0';
 
-  // printf("num1 is: %s\n", num1);
-  // printf("num2 is: %s\n", num2);
+  char num2[LIMIT] = "";
+  int n2Index = 0;
+  for (int k = operatorIndex + 1; k <= endIndex; k++)
+  {
+    if (expression[k] != ' ')
+    {
+      num2[n2Index++] = expression[k];
+    }
+  }
+  num2[n2Index] = '\0';
 
   // performing the operation
-  int op_result = 0;
-  if (operator== '+')
-    op_result = atoi(num1) + atoi(num2);
-  if (operator== '-')
-    op_result = atoi(num1) - atoi(num2);
-  if (operator== '*')
-    op_result = atoi(num1) * atoi(num2);
-  if (operator== '/')
+  int operationResult = 0;
+  switch (operator)
   {
+  case '+':
+    operationResult = atoi(num1) + atoi(num2);
+    break;
+  case '-':
+    operationResult = atoi(num1) - atoi(num2);
+    break;
+  case '*':
+    operationResult = atoi(num1) * atoi(num2);
+    break;
+  case '/':
     if (atoi(num2) == 0)
     {
-      printf("division by zero error\n");
+      printf("Division by zero error\n");
       return -1;
     }
-    op_result = atoi(num1) / atoi(num2);
+    operationResult = atoi(num1) / atoi(num2);
+    break;
+  default:
+    printf("Invalid operator\n");
+    return -1;
   }
 
   // Convert operation result into string
-  char result_str[limit] = "";
-  sprintf(result_str, "%d", op_result);
-  // printf("result is: %s\n", result_str);
+  char resultString[LIMIT] = "";
+  sprintf(resultString, "%d", operationResult);
 
   // place the operation result back into the expression string
-  int result_len = strlen(result_str);
-  int tmp = st_index;
+  int resultLength = strlen(resultString);
+  int tmp = startIndex;
   int i = 0;
-  while (tmp <= end_index)
+  while (tmp <= endIndex)
   {
-    if (i < result_len)
+    if (i < resultLength)
     {
-      expression[tmp] = result_str[i];
+      expression[tmp] = resultString[i];
       i++;
     }
     else
@@ -137,7 +139,7 @@ int performOperation(char expression[limit], int length, char op1, char op2)
   return atoi(expression);
 }
 
-int calculate(char expression[limit], int length)
+int evaluateExpressionDMAS(char expression[LIMIT], int length)
 {
   // Find the number of divMul and addSub operations
   int no_addSub = 0;
@@ -145,9 +147,9 @@ int calculate(char expression[limit], int length)
 
   for (int i = 0; i < length; i++)
   {
-    if (!checkValid(expression[i]))
+    if (!isValidCharacter(expression[i]))
     {
-      printf("Invalid input expression");
+      printf("Invalid input expression\n");
       return -1;
     }
 
@@ -176,7 +178,7 @@ int calculate(char expression[limit], int length)
 int main()
 {
   // Define expression
-  char expression[limit];
+  char expression[LIMIT];
 
   // Input expression
   printf("Enter the expression: ");
@@ -186,7 +188,7 @@ int main()
   // find length
   int length = strlen(expression);
 
-  // Calculate
-  printf("result: %d", calculate(expression, length));
+  // execute Operations in the DMAS order
+  printf("result: %d", evaluateExpressionDMAS(expression, length));
   return 0;
 }
