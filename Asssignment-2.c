@@ -2,27 +2,13 @@
 #include <stdio.h>
 #include <string.h>
 
+#define SIZE_LIMIT 1000
+
 // File operations
-void writeToFile(char filename[1000], char str[1000])
+void modifyFile(char filename[SIZE_LIMIT], char str[SIZE_LIMIT], char mode)
 {
   FILE *fptr;
-  fptr = fopen(filename, "w");
-
-  if (fptr != NULL)
-  {
-    fputs(str, fptr);
-    fclose(fptr);
-  }
-  else
-  {
-    printf("Error: Can't open file");
-  }
-}
-
-void appendToFile(char filename[1000], char str[1000])
-{
-  FILE *fptr;
-  fptr = fopen(filename, "a");
+  fptr = fopen(filename, mode);
 
   if (fptr != NULL)
   {
@@ -35,14 +21,14 @@ void appendToFile(char filename[1000], char str[1000])
   }
 }
 
-void readFromFile(char filename[1000])
+void readFromFile(char filename[SIZE_LIMIT])
 {
   FILE *fptr;
   fptr = fopen(filename, "r");
 
   if (fptr != NULL)
   {
-    char content[1000];
+    char content[SIZE_LIMIT];
     while (fgets(content, sizeof(content), fptr))
     {
       printf("%s", content);
@@ -59,7 +45,7 @@ void readFromFile(char filename[1000])
 struct User
 {
   int id;
-  char name[1000];
+  char name[SIZE_LIMIT];
   int age;
 };
 
@@ -92,16 +78,16 @@ void getUsers()
   readFromFile("users.txt");
 }
 
-void addUser(int id, char name[1000], int age)
+void addUser(int id, char name[SIZE_LIMIT], int age)
 {
   // Load existing users
-  struct User users[1000];
+  struct User users[SIZE_LIMIT];
   int count = loadUsers("users.txt", users);
 
   // Check for duplicate ID
-  for (int i = 0; i < count; i++)
+  for (int userIndex = 0; userIndex < count; userIndex++)
   {
-    if (users[i].id == id)
+    if (users[userIndex].id == id)
     {
       printf("Error: User with ID %d already exists!\n", id);
       return; // don’t add the user
@@ -115,25 +101,25 @@ void addUser(int id, char name[1000], int age)
   username.age = age;
 
   // Append to the file
-  char combinedStr[1000];
-  sprintf(combinedStr, "%d %s %d\n", id, name, age);
-  appendToFile("users.txt", combinedStr);
+  char formattedUserData[SIZE_LIMIT];
+  sprintf(formattedUserData, "%d %s %d\n", id, name, age);
+  modifyFile("users.txt", formattedUserData, 'a');
 
   printf("User with ID %d added successfully!\n", id);
 }
 
-void updateUser(int id, char name[1000], int age)
+void updateUser(int id, char name[SIZE_LIMIT], int age)
 {
-  struct User users[1000];
+  struct User users[SIZE_LIMIT];
   int count = loadUsers("users.txt", users);
 
   int found = 0;
-  for (int i = 0; i < count; i++)
+  for (int userIndex = 0; userIndex < count; userIndex++)
   {
-    if (users[i].id == id)
+    if (users[userIndex].id == id)
     {
-      strcpy(users[i].name, name);
-      users[i].age = age;
+      strcpy(users[userIndex].name, name);
+      users[userIndex].age = age;
       found = 1;
       break;
     }
@@ -146,12 +132,12 @@ void updateUser(int id, char name[1000], int age)
   }
 
   // Re-write users back into the file
-  writeToFile("users.txt", "");
-  for (int i = 0; i < count; i++)
+  modifyFile("users.txt", "", 'w');
+  for (int userIndex = 0; userIndex < count; userIndex++)
   {
-    char combinedStr[1000];
-    sprintf(combinedStr, "%d %s %d\n", users[i].id, users[i].name, users[i].age);
-    appendToFile("users.txt", combinedStr);
+    char formattedUserData[SIZE_LIMIT];
+    sprintf(formattedUserData, "%d %s %d\n", users[userIndex].id, users[userIndex].name, users[userIndex].age);
+    modifyFile("users.txt", formattedUserData, 'a');
   }
 
   printf("User with ID %d updated successfully!\n", id);
@@ -159,22 +145,23 @@ void updateUser(int id, char name[1000], int age)
 
 void deleteUser(int id)
 {
-  struct User users[1000];
+  struct User users[SIZE_LIMIT];
   int count = loadUsers("users.txt", users);
 
   int found = 0;
-  for (int i = 0; i < count; i++)
+  for (int userIndex = 0; userIndex < count; userIndex++)
   {
-    if (users[i].id == id)
+    if (users[userIndex].id == id)
     {
       found = 1;
 
-      // Shift users down to remove this one
-      for (int j = i; j < count - 1; j++)
+      // Shift users down to remove this one user
+      for (int tempUserIndex = userIndex; tempUserIndex < count - 1; tempUserIndex++)
       {
-        users[j] = users[j + 1];
+        users[tempUserIndex] = users[tempUserIndex + 1];
       }
       count--;
+
       printf("User with ID %d deleted successfully!\n", id);
       break;
     }
@@ -187,12 +174,12 @@ void deleteUser(int id)
   }
 
   // Rewrite updated list
-  writeToFile("users.txt", "");
-  for (int i = 0; i < count; i++)
+  modifyFile("users.txt", "", 'w');
+  for (int userIndex = 0; userIndex < count; userIndex++)
   {
-    char combinedStr[1000];
-    sprintf(combinedStr, "%d %s %d\n", users[i].id, users[i].name, users[i].age);
-    appendToFile("users.txt", combinedStr);
+    char formattedUserData[SIZE_LIMIT];
+    sprintf(formattedUserData, "%d %s %d\n", users[userIndex].id, users[userIndex].name, users[userIndex].age);
+    modifyFile("users.txt", formattedUserData, 'a');
   }
 }
 
@@ -200,7 +187,7 @@ int main()
 {
 
   int choice, id, age;
-  char name[1000];
+  char name[SIZE_LIMIT];
   while (1)
   {
     printf("\n1. Add\n2. Read\n3. Update\n4. Delete\n5. Exit\nChoice: ");
