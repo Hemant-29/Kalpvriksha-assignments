@@ -1,227 +1,218 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #define MAX_LIMIT 1000
 #define STACK_EMPTY -9999
 
-// Generic stack implementation
 typedef struct
 {
   int top;
-  int arr[MAX_LIMIT];
-} Stack;
+  int items[MAX_LIMIT];
+} IntegerStack;
 
-void initStack(Stack *s)
+typedef struct
 {
-  s->top = -1;
+  int top;
+  char items[MAX_LIMIT];
+} CharacterStack;
+
+void initializeIntegerStack(IntegerStack *stack)
+{
+  stack->top = -1;
 }
 
-int isEmptyStack(Stack *s)
+int isIntegerStackEmpty(const IntegerStack *stack)
 {
-  return s->top < 0;
+  return stack->top < 0;
 }
 
-void pushToStack(Stack *s, int val)
+void pushToIntegerStack(IntegerStack *stack, int value)
 {
-  if (s->top < MAX_LIMIT - 1)
+  if (stack->top < MAX_LIMIT - 1)
   {
-    s->arr[++s->top] = val;
-  }
-  else
-  {
-    printf("Stack overflow\n");
+    stack->items[++stack->top] = value;
   }
 }
 
-int popStack(Stack *s)
+int popFromIntegerStack(IntegerStack *stack)
 {
-  if (isEmptyStack(s))
-  {
-    printf("Stack underflow\n");
-    return STACK_EMPTY;
-  }
-  return s->arr[s->top--];
-}
-
-int peekStack(Stack *s)
-{
-  if (isEmptyStack(s))
+  if (isIntegerStackEmpty(stack))
   {
     return STACK_EMPTY;
   }
-  return s->arr[s->top];
+  return stack->items[stack->top--];
 }
 
-// Function to return precedence of operators
-int precedence(char op)
+void initializeCharacterStack(CharacterStack *stack)
 {
-  if (op == '/' || op == '*')
+  stack->top = -1;
+}
+
+int isCharacterStackEmpty(const CharacterStack *stack)
+{
+  return stack->top < 0;
+}
+
+void pushToCharacterStack(CharacterStack *stack, char value)
+{
+  if (stack->top < MAX_LIMIT - 1)
+  {
+    stack->items[++stack->top] = value;
+  }
+}
+
+char popFromCharacterStack(CharacterStack *stack)
+{
+  if (isCharacterStackEmpty(stack))
+  {
+    return '\0';
+  }
+  return stack->items[stack->top--];
+}
+
+char peekAtCharacterStack(const CharacterStack *stack)
+{
+  if (isCharacterStackEmpty(stack))
+  {
+    return '\0';
+  }
+  return stack->items[stack->top];
+}
+
+int getOperatorPrecedence(char operator)
+{
+  if (operator== '*' || operator== '/')
+  {
     return 2;
-  if (op == '+' || op == '-')
+  }
+  if (operator== '+' || operator== '-')
+  {
     return 1;
-  return 0; // Should not happen for valid operators
+  }
+  return 0;
 }
 
-// Function to convert infix expression to a postfix expression
-int convertToPostfix(char expression[MAX_LIMIT])
+int applyOperator(int operand1, int operand2, char operator, int * errorFlag)
 {
-  char postfix[MAX_LIMIT] = ""; // output string
-  int expressionLength = strlen(expression);
-
-  Stack st;
-  initStack(&st);
-
-  // process all the expression characters in a loop
-  for (int i = 0; i < expressionLength; i++)
+  switch (operator)
   {
-    char currChar = expression[i];
-
-    // Handling whitespaces inbetween the characters
-    if (currChar == ' ')
+  case '+':
+    return operand1 + operand2;
+  case '-':
+    return operand1 - operand2;
+  case '*':
+    return operand1 * operand2;
+  case '/':
+    if (operand2 == 0)
     {
+      *errorFlag = 1;
+      return 0;
+    }
+    return operand1 / operand2;
+  default:
+    *errorFlag = 1;
+    return 0;
+  }
+}
+
+int evaluateExpression(const char *expression, int *errorFlag)
+{
+  IntegerStack valueStack;
+  CharacterStack operatorStack;
+  initializeIntegerStack(&valueStack);
+  initializeCharacterStack(&operatorStack);
+
+  int i = 0;
+  while (expression[i] != '\0')
+  {
+    if (isspace(expression[i]))
+    {
+      i++;
       continue;
     }
 
-    // If the current character is a number, add it into postfix expression
-    if (currChar >= '0' && currChar <= '9')
+    if (isdigit(expression[i]))
     {
-      char tempStr[10] = "";
-      while (i < expressionLength && expression[i] >= '0' && expression[i] <= '9')
+      int currentNumber = 0;
+      while (isdigit(expression[i]))
       {
-        char currCharStr[2] = {expression[i], '\0'};
-        strcat(tempStr, currCharStr);
+        currentNumber = currentNumber * 10 + (expression[i] - '0');
         i++;
       }
-      i--;
-
-      strcat(postfix, tempStr);
-      strcat(postfix, " ");
-      continue;
+      pushToIntegerStack(&valueStack, currentNumber);
     }
-
-    // If current element is an operator, then do precedence checks
-    else if (currChar == '+' || currChar == '-' || currChar == '*' || currChar == '/')
+    else if (strchr("+-*/", expression[i]))
     {
-      while (!isEmptyStack(&st) && precedence((char)peekStack(&st)) >= precedence(currChar))
+      while (!isCharacterStackEmpty(&operatorStack) &&
+             getOperatorPrecedence(peekAtCharacterStack(&operatorStack)) >= getOperatorPrecedence(expression[i]))
       {
-        char poppedElement = (char)popStack(&st);
-        char tempStr[2] = {poppedElement, '\0'};
-        strcat(postfix, tempStr);
-        strcat(postfix, " ");
+        int operand2 = popFromIntegerStack(&valueStack);
+        int operand1 = popFromIntegerStack(&valueStack);
+        char operator= popFromCharacterStack(&operatorStack);
+
+        if (operand1 == STACK_EMPTY || operand2 == STACK_EMPTY)
+        {
+          *errorFlag = 1;
+          return 0;
+        }
+
+        pushToIntegerStack(&valueStack, applyOperator(operand1, operand2, operator, errorFlag));
+        if (*errorFlag)
+        {
+          return 0;
+        }
       }
-
-      // if precedence of curr is more, or if theres no element in the stack
-      pushToStack(&st, currChar);
+      pushToCharacterStack(&operatorStack, expression[i]);
+      i++;
     }
-
-    // Handling the invalid input in case its not a number or an operator
     else
     {
-      printf("Error: Invalid expression\n");
+      *errorFlag = 1; // Invalid character
       return 0;
     }
   }
 
-  // Once the loop is over, pop the remaining stack elements and add to the expression
-  while (!isEmptyStack(&st))
+  while (!isCharacterStackEmpty(&operatorStack))
   {
-    char curr = (char)popStack(&st);
-    char tempStr[2] = {curr, '\0'};
-    strcat(postfix, tempStr);
-    strcat(postfix, " ");
+    int operand2 = popFromIntegerStack(&valueStack);
+    int operand1 = popFromIntegerStack(&valueStack);
+    char operator= popFromCharacterStack(&operatorStack);
+
+    if (operand1 == STACK_EMPTY || operand2 == STACK_EMPTY)
+    {
+      *errorFlag = 1;
+      return 0;
+    }
+
+    pushToIntegerStack(&valueStack, applyOperator(operand1, operand2, operator, errorFlag));
+    if (*errorFlag)
+    {
+      return 0;
+    }
   }
 
-  // copy the postfix output to the expression string
-  strcpy(expression, postfix);
-  return 1;
-}
-
-// Function to solve a postfix expression
-int solvePostfix(char expression[MAX_LIMIT])
-{
-  int expLength = strlen(expression);
-  Stack st;
-  initStack(&st);
-
-  for (int i = 0; i < expLength; i++)
-  {
-    char currChar = expression[i];
-    if (currChar == ' ')
-    {
-      continue;
-    }
-    else if (currChar >= '0' && currChar <= '9')
-    {
-      int number = 0;
-      while (i < expLength && expression[i] >= '0' && expression[i] <= '9')
-      {
-        number = number * 10 + (expression[i] - '0');
-        i++;
-      }
-      i--; // Backtrack by one value
-      pushToStack(&st, number);
-    }
-    else if (currChar == '+' || currChar == '-' || currChar == '*' || currChar == '/')
-    {
-      // perform the operation on the 2 elements below it
-      int result;
-      int el1 = popStack(&st);
-      int el2 = popStack(&st);
-      if (el1 == STACK_EMPTY || el2 == STACK_EMPTY)
-      {
-        printf("Error: Invalid expression\n");
-        return -1;
-      }
-
-      switch (currChar)
-      {
-      case '+':
-        result = el2 + el1;
-        break;
-      case '-':
-        result = el2 - el1;
-        break;
-      case '*':
-        result = el2 * el1;
-        break;
-      case '/':
-        if (el1 == 0)
-        {
-          printf("Divide by zero error\n");
-          return -1;
-        }
-        result = el2 / el1;
-        break;
-
-      default:
-        break;
-      }
-
-      // Push the result back into the stack
-      pushToStack(&st, result);
-    }
-    else
-    {
-      printf("Error: Invalid expression\n");
-      return -1;
-    }
-  }
-  return popStack(&st);
+  return popFromIntegerStack(&valueStack);
 }
 
 int main()
 {
-
-  char expression[MAX_LIMIT] = "19 - 2 * 3 + 4 / 2";
-
+  char expression[MAX_LIMIT];
   printf("Enter your expression: ");
   fgets(expression, sizeof(expression), stdin);
   expression[strcspn(expression, "\n")] = '\0';
 
-  if (convertToPostfix(expression))
+  int errorFlag = 0;
+  int result = evaluateExpression(expression, &errorFlag);
+
+  if (errorFlag)
   {
-    printf("Expression output is: %d\n", solvePostfix(expression));
+    printf("Error: Invalid expression or division by zero.\n");
+  }
+  else
+  {
+    printf("Result: %d\n", result);
   }
 
   return 0;
