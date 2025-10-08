@@ -4,44 +4,6 @@
 
 #define SIZE_LIMIT 1000
 
-// File operations
-void modifyFile(char filename[SIZE_LIMIT], char str[SIZE_LIMIT], char mode)
-{
-  FILE *fptr;
-  fptr = fopen(filename, mode);
-
-  if (fptr != NULL)
-  {
-    fputs(str, fptr);
-    fclose(fptr);
-  }
-  else
-  {
-    printf("Error: Can't open file!");
-  }
-}
-
-void readFromFile(char filename[SIZE_LIMIT])
-{
-  FILE *fptr;
-  fptr = fopen(filename, "r");
-
-  if (fptr != NULL)
-  {
-    char content[SIZE_LIMIT];
-    while (fgets(content, sizeof(content), fptr))
-    {
-      printf("%s", content);
-    }
-    fclose(fptr);
-  }
-  else
-  {
-    printf("Error: Can't open file");
-  }
-}
-
-// User struct
 struct User
 {
   int id;
@@ -49,95 +11,117 @@ struct User
   int age;
 };
 
-int loadUsers(const char *filename, struct User users[])
+void writeToFile(const char *fileName, const char *content, const char *mode)
 {
-  FILE *fptr = fopen(filename, "r");
-  if (fptr == NULL)
+  FILE *filePointer = fopen(fileName, mode);
+  if (filePointer != NULL)
   {
-    printf("Error: Can't open file for reading!\n");
+    fputs(content, filePointer);
+    fclose(filePointer);
+  }
+  else
+  {
+    printf("Error: Could not open file!\n");
+  }
+}
+
+void readFromFile(const char *fileName)
+{
+  FILE *filePointer = fopen(fileName, "r");
+  if (filePointer != NULL)
+  {
+    char fileContent[SIZE_LIMIT];
+    while (fgets(fileContent, sizeof(fileContent), filePointer))
+    {
+      printf("%s", fileContent);
+    }
+    fclose(filePointer);
+  }
+  else
+  {
+    printf("Error: Could not open file!\n");
+  }
+}
+
+int loadUsersFromFile(const char *fileName, struct User userList[])
+{
+  FILE *filePointer = fopen(fileName, "r");
+  if (!filePointer)
+  {
     return 0;
   }
 
-  int count = 0;
-  // assign id, name, age to the users[] array
-  while (fscanf(fptr, "%d %s %d",
-                &users[count].id,
-                users[count].name,
-                &users[count].age) == 3)
+  int userCount = 0;
+  // Format string reads up to 999 chars until a ',' to prevent buffer overflow.
+  while (fscanf(filePointer, " {id: %d, name: %999[^,], age: %d}",
+                &userList[userCount].id, userList[userCount].name, &userList[userCount].age) == 3)
   {
-    count++;
-  }
-
-  fclose(fptr);
-  return count; // number of users actually loaded
-}
-
-void getUsers()
-{
-  printf("\nid Username age\n");
-  readFromFile("users.txt");
-}
-
-void addUser(int id, char name[SIZE_LIMIT], int age)
-{
-  // Load existing users
-  struct User users[SIZE_LIMIT];
-  int count = loadUsers("users.txt", users);
-
-  // Check for duplicate ID
-  for (int userIndex = 0; userIndex < count; userIndex++)
-  {
-    if (users[userIndex].id == id)
+    userCount++;
+    if (userCount >= SIZE_LIMIT)
     {
-      printf("Error: User with ID %d already exists!\n", id);
-      return; // don’t add the user
-    }
-  }
-
-  // If no duplicate found, create new user
-  struct User username;
-  username.id = id;
-  strcpy(username.name, name);
-  username.age = age;
-
-  // Append to the file
-  char formattedUserData[SIZE_LIMIT];
-  sprintf(formattedUserData, "%d %s %d\n", id, name, age);
-  modifyFile("users.txt", formattedUserData, 'a');
-
-  printf("User with ID %d added successfully!\n", id);
-}
-
-void updateUser(int id, char name[SIZE_LIMIT], int age)
-{
-  struct User users[SIZE_LIMIT];
-  int count = loadUsers("users.txt", users);
-
-  int found = 0;
-  for (int userIndex = 0; userIndex < count; userIndex++)
-  {
-    if (users[userIndex].id == id)
-    {
-      strcpy(users[userIndex].name, name);
-      users[userIndex].age = age;
-      found = 1;
       break;
     }
   }
 
-  if (!found)
+  fclose(filePointer);
+  return userCount;
+}
+
+void displayAllUsers()
+{
+  readFromFile("users.txt");
+}
+
+void addUser(int id, const char *name, int age)
+{
+  struct User userList[SIZE_LIMIT];
+  int userCount = loadUsersFromFile("users.txt", userList);
+
+  for (int i = 0; i < userCount; i++)
+  {
+    if (userList[i].id == id)
+    {
+      printf("Error: User with ID %d already exists!\n", id);
+      return;
+    }
+  }
+
+  char formattedUserData[SIZE_LIMIT];
+  sprintf(formattedUserData, "{id: %d, name: %s, age: %d}\n", id, name, age);
+  writeToFile("users.txt", formattedUserData, "a");
+
+  printf("User with ID %d added successfully!\n", id);
+}
+
+void updateUser(int id, const char *name, int age)
+{
+  struct User userList[SIZE_LIMIT];
+  int userCount = loadUsersFromFile("users.txt", userList);
+  int wasUserFound = 0;
+
+  for (int i = 0; i < userCount; i++)
+  {
+    if (userList[i].id == id)
+    {
+      strcpy(userList[i].name, name);
+      userList[i].age = age;
+      wasUserFound = 1;
+      break;
+    }
+  }
+
+  if (!wasUserFound)
   {
     printf("User with ID %d not found! Cannot update.\n", id);
     return;
   }
 
-  // Re-write users back into the file
-  modifyFile("users.txt", "", 'w');
-  for (int userIndex = 0; userIndex < count; userIndex++)
+  writeToFile("users.txt", "", "w"); // Clear the file before rewriting
+  for (int i = 0; i < userCount; i++)
   {
     char formattedUserData[SIZE_LIMIT];
-    sprintf(formattedUserData, "%d %s %d\n", users[userIndex].id, users[userIndex].name, users[userIndex].age);
-    modifyFile("users.txt", formattedUserData, 'a');
+    sprintf(formattedUserData, "{id: %d, name: %s, age: %d}\n", userList[i].id, userList[i].name, userList[i].age);
+    writeToFile("users.txt", formattedUserData, "a");
   }
 
   printf("User with ID %d updated successfully!\n", id);
@@ -145,75 +129,101 @@ void updateUser(int id, char name[SIZE_LIMIT], int age)
 
 void deleteUser(int id)
 {
-  struct User users[SIZE_LIMIT];
-  int count = loadUsers("users.txt", users);
+  struct User userList[SIZE_LIMIT];
+  int userCount = loadUsersFromFile("users.txt", userList);
+  int wasUserFound = 0;
 
-  int found = 0;
-  for (int userIndex = 0; userIndex < count; userIndex++)
+  for (int i = 0; i < userCount; i++)
   {
-    if (users[userIndex].id == id)
+    if (userList[i].id == id)
     {
-      found = 1;
-
-      // Shift users down to remove this one user
-      for (int tempUserIndex = userIndex; tempUserIndex < count - 1; tempUserIndex++)
+      wasUserFound = 1;
+      // Shift elements down to overwrite and remove the user.
+      for (int j = i; j < userCount - 1; j++)
       {
-        users[tempUserIndex] = users[tempUserIndex + 1];
+        userList[j] = userList[j + 1];
       }
-      count--;
-
+      userCount--;
       printf("User with ID %d deleted successfully!\n", id);
       break;
     }
   }
 
-  if (!found)
+  if (!wasUserFound)
   {
     printf("User with ID %d not found! Cannot delete.\n", id);
     return;
   }
 
-  // Rewrite updated list
-  modifyFile("users.txt", "", 'w');
-  for (int userIndex = 0; userIndex < count; userIndex++)
+  writeToFile("users.txt", "", "w"); // Clear the file before rewriting
+  for (int i = 0; i < userCount; i++)
   {
     char formattedUserData[SIZE_LIMIT];
-    sprintf(formattedUserData, "%d %s %d\n", users[userIndex].id, users[userIndex].name, users[userIndex].age);
-    modifyFile("users.txt", formattedUserData, 'a');
+    sprintf(formattedUserData, "{id: %d, name: %s, age: %d}\n", userList[i].id, userList[i].name, userList[i].age);
+    writeToFile("users.txt", formattedUserData, "a");
   }
 }
 
 int main()
 {
-
   int choice, id, age;
   char name[SIZE_LIMIT];
+
   while (1)
   {
-    printf("\n1. Add\n2. Read\n3. Update\n4. Delete\n5. Exit\nChoice: ");
+    printf("\n1. Add User\n2. Display Users\n3. Update User\n4. Delete User\n5. Exit\nChoice: ");
     scanf("%d", &choice);
+
+    // Consume the leftover newline character before using fgets.
+    int bufferChar;
+    while ((bufferChar = getchar()) != '\n' && bufferChar != EOF)
+      ;
+
     switch (choice)
     {
     case 1:
-      printf("Enter ID Name Age: ");
-      scanf("%d %s %d", &id, name, &age);
+      printf("Enter ID: ");
+      scanf("%d", &id);
+      while ((bufferChar = getchar()) != '\n' && bufferChar != EOF)
+        ;
+
+      printf("Enter Name: ");
+      fgets(name, sizeof(name), stdin);
+      name[strcspn(name, "\n")] = '\0'; // Trim trailing newline.
+
+      printf("Enter Age: ");
+      scanf("%d", &age);
       addUser(id, name, age);
       break;
+
     case 2:
-      getUsers();
+      displayAllUsers();
       break;
+
     case 3:
-      printf("Enter ID NewName NewAge: ");
-      scanf("%d %s %d", &id, name, &age);
+      printf("Enter ID of user to update: ");
+      scanf("%d", &id);
+      while ((bufferChar = getchar()) != '\n' && bufferChar != EOF)
+        ;
+
+      printf("Enter new Name: ");
+      fgets(name, sizeof(name), stdin);
+      name[strcspn(name, "\n")] = '\0';
+
+      printf("Enter new Age: ");
+      scanf("%d", &age);
       updateUser(id, name, age);
       break;
+
     case 4:
       printf("Enter ID to delete: ");
       scanf("%d", &id);
       deleteUser(id);
       break;
+
     case 5:
       exit(0);
+
     default:
       printf("Invalid choice!\n");
     }
