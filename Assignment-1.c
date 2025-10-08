@@ -2,193 +2,227 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define LIMIT 100
+#define MAX_LIMIT 1000
+#define STACK_EMPTY -9999
 
-int isValidCharacter(char ch)
+// Generic stack implementation
+typedef struct
 {
-  char valids[15] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', '*', '/', ' '};
-  for (int i = 0; i < 15; i++)
-  {
-    if (ch == valids[i])
-      return 1; // ch present in valids array
-  }
-  return 0;
+  int top;
+  int arr[MAX_LIMIT];
+} Stack;
+
+void initStack(Stack *s)
+{
+  s->top = -1;
 }
 
-int isOperator(char ch)
+int isEmptyStack(Stack *s)
 {
-  if (ch == '*' || ch == '/' || ch == '+' || ch == '-')
+  return s->top < 0;
+}
+
+void pushToStack(Stack *s, int val)
+{
+  if (s->top < MAX_LIMIT - 1)
   {
+    s->arr[++s->top] = val;
+  }
+  else
+  {
+    printf("Stack overflow\n");
+  }
+}
+
+int popStack(Stack *s)
+{
+  if (isEmptyStack(s))
+  {
+    printf("Stack underflow\n");
+    return STACK_EMPTY;
+  }
+  return s->arr[s->top--];
+}
+
+int peekStack(Stack *s)
+{
+  if (isEmptyStack(s))
+  {
+    return STACK_EMPTY;
+  }
+  return s->arr[s->top];
+}
+
+// Function to return precedence of operators
+int precedence(char op)
+{
+  if (op == '/' || op == '*')
+    return 2;
+  if (op == '+' || op == '-')
     return 1;
-  }
-  return 0;
+  return 0; // Should not happen for valid operators
 }
 
-int isOperandCharacter(char ch)
+// Function to convert infix expression to a postfix expression
+int convertToPostfix(char expression[MAX_LIMIT])
 {
-  return (ch >= '0' && ch <= '9') || (ch == ' ');
+  char postfix[MAX_LIMIT] = ""; // output string
+  int expressionLength = strlen(expression);
+
+  Stack st;
+  initStack(&st);
+
+  // process all the expression characters in a loop
+  for (int i = 0; i < expressionLength; i++)
+  {
+    char currChar = expression[i];
+
+    // Handling whitespaces inbetween the characters
+    if (currChar == ' ')
+    {
+      continue;
+    }
+
+    // If the current character is a number, add it into postfix expression
+    if (currChar >= '0' && currChar <= '9')
+    {
+      char tempStr[10] = "";
+      while (i < expressionLength && expression[i] >= '0' && expression[i] <= '9')
+      {
+        char currCharStr[2] = {expression[i], '\0'};
+        strcat(tempStr, currCharStr);
+        i++;
+      }
+      i--;
+
+      strcat(postfix, tempStr);
+      strcat(postfix, " ");
+      continue;
+    }
+
+    // If current element is an operator, then do precedence checks
+    else if (currChar == '+' || currChar == '-' || currChar == '*' || currChar == '/')
+    {
+      while (!isEmptyStack(&st) && precedence((char)peekStack(&st)) >= precedence(currChar))
+      {
+        char poppedElement = (char)popStack(&st);
+        char tempStr[2] = {poppedElement, '\0'};
+        strcat(postfix, tempStr);
+        strcat(postfix, " ");
+      }
+
+      // if precedence of curr is more, or if theres no element in the stack
+      pushToStack(&st, currChar);
+    }
+
+    // Handling the invalid input in case its not a number or an operator
+    else
+    {
+      printf("Error: Invalid expression\n");
+      return 0;
+    }
+  }
+
+  // Once the loop is over, pop the remaining stack elements and add to the expression
+  while (!isEmptyStack(&st))
+  {
+    char curr = (char)popStack(&st);
+    char tempStr[2] = {curr, '\0'};
+    strcat(postfix, tempStr);
+    strcat(postfix, " ");
+  }
+
+  // copy the postfix output to the expression string
+  strcpy(expression, postfix);
+  return 1;
 }
 
-int performOperation(char expression[LIMIT], int length, char op1, char op2)
+// Function to solve a postfix expression
+int solvePostfix(char expression[MAX_LIMIT])
 {
+  int expLength = strlen(expression);
+  Stack st;
+  initStack(&st);
 
-  int startIndex = 0;
-  int endIndex = 0;
-  char operator= '\0';
-  int operatorIndex = 0;
-
-  for (int i = 0; i < length; i++)
+  for (int i = 0; i < expLength; i++)
   {
-    if (expression[i] == op1 || expression[i] == op2)
+    char currChar = expression[i];
+    if (currChar == ' ')
     {
-      operator= expression[i];
-      operatorIndex = i;
-
-      // finding starting index (go left until non-number)
-      int leftEnd = i - 1;
-      while (leftEnd >= 0 && isOperandCharacter(expression[leftEnd]))
+      continue;
+    }
+    else if (currChar >= '0' && currChar <= '9')
+    {
+      int number = 0;
+      while (i < expLength && expression[i] >= '0' && expression[i] <= '9')
       {
-        leftEnd--;
+        number = number * 10 + (expression[i] - '0');
+        i++;
       }
-      startIndex = leftEnd + 1;
-
-      // finding ending index (go right until non-number)
-      int rightEnd = i + 1;
-      while (rightEnd < length && isOperandCharacter(expression[rightEnd]))
+      i--; // Backtrack by one value
+      pushToStack(&st, number);
+    }
+    else if (currChar == '+' || currChar == '-' || currChar == '*' || currChar == '/')
+    {
+      // perform the operation on the 2 elements below it
+      int result;
+      int el1 = popStack(&st);
+      int el2 = popStack(&st);
+      if (el1 == STACK_EMPTY || el2 == STACK_EMPTY)
       {
-        rightEnd++;
+        printf("Error: Invalid expression\n");
+        return -1;
       }
-      endIndex = rightEnd - 1;
 
-      break;
-    }
-  }
+      switch (currChar)
+      {
+      case '+':
+        result = el2 + el1;
+        break;
+      case '-':
+        result = el2 - el1;
+        break;
+      case '*':
+        result = el2 * el1;
+        break;
+      case '/':
+        if (el1 == 0)
+        {
+          printf("Divide by zero error\n");
+          return -1;
+        }
+        result = el2 / el1;
+        break;
 
-  // Finding the num1 and num2
-  char num1[LIMIT] = "";
-  int n1Index = 0;
-  for (int k = startIndex; k < operatorIndex; k++)
-  {
-    if (expression[k] != ' ')
-    {
-      num1[n1Index] = expression[k]; // Skipping any whitespaces
-      n1Index++;
-    }
-  }
-  num1[n1Index] = '\0';
+      default:
+        break;
+      }
 
-  char num2[LIMIT] = "";
-  int n2Index = 0;
-  for (int k = operatorIndex + 1; k <= endIndex; k++)
-  {
-    if (expression[k] != ' ')
-    {
-      num2[n2Index++] = expression[k];
-    }
-  }
-  num2[n2Index] = '\0';
-
-  // performing the operation
-  int operationResult = 0;
-  switch (operator)
-  {
-  case '+':
-    operationResult = atoi(num1) + atoi(num2);
-    break;
-  case '-':
-    operationResult = atoi(num1) - atoi(num2);
-    break;
-  case '*':
-    operationResult = atoi(num1) * atoi(num2);
-    break;
-  case '/':
-    if (atoi(num2) == 0)
-    {
-      printf("Division by zero error\n");
-      return -1;
-    }
-    operationResult = atoi(num1) / atoi(num2);
-    break;
-  default:
-    printf("Invalid operator\n");
-    return -1;
-  }
-
-  // Convert operation result into string
-  char resultString[LIMIT] = "";
-  sprintf(resultString, "%d", operationResult);
-
-  // place the operation result back into the expression string
-  int resultLength = strlen(resultString);
-  int tmp = startIndex;
-  int i = 0;
-  while (tmp <= endIndex)
-  {
-    if (i < resultLength)
-    {
-      expression[tmp] = resultString[i];
-      i++;
+      // Push the result back into the stack
+      pushToStack(&st, result);
     }
     else
     {
-      expression[tmp] = ' ';
-    }
-    tmp++;
-  }
-
-  return atoi(expression);
-}
-
-int evaluateExpressionDMAS(char expression[LIMIT], int length)
-{
-  // Find the number of divMul and addSub operations
-  int no_addSub = 0;
-  int no_mulDiv = 0;
-
-  for (int i = 0; i < length; i++)
-  {
-    if (!isValidCharacter(expression[i]))
-    {
-      printf("Invalid input expression\n");
+      printf("Error: Invalid expression\n");
       return -1;
     }
-
-    if (expression[i] == '*' || expression[i] == '/')
-      no_mulDiv++;
-
-    if (expression[i] == '+' || expression[i] == '-')
-      no_addSub++;
   }
-
-  // Perform the mul-div operations first and then add-sub operations
-  int result = -1;
-  for (int i = 0; i < no_mulDiv; i++)
-  {
-    result = performOperation(expression, length, '*', '/');
-    if (result == -1)
-      return -1;
-  }
-  for (int i = 0; i < no_addSub; i++)
-  {
-    result = performOperation(expression, length, '+', '-');
-  }
-  return result;
+  return popStack(&st);
 }
 
 int main()
 {
-  // Define expression
-  char expression[LIMIT];
 
-  // Input expression
-  printf("Enter the expression: ");
+  char expression[MAX_LIMIT] = "19 - 2 * 3 + 4 / 2";
+
+  printf("Enter your expression: ");
   fgets(expression, sizeof(expression), stdin);
   expression[strcspn(expression, "\n")] = '\0';
 
-  // find length
-  int length = strlen(expression);
+  if (convertToPostfix(expression))
+  {
+    printf("Expression output is: %d\n", solvePostfix(expression));
+  }
 
-  // execute Operations in the DMAS order
-  printf("result: %d", evaluateExpressionDMAS(expression, length));
   return 0;
 }
