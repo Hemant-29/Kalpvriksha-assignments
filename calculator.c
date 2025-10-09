@@ -3,94 +3,57 @@
 #include <string.h>
 #include <ctype.h>
 
-#define MAX_LIMIT 1000
-#define STACK_EMPTY -9999
+#define STACK_CAPACITY 1000
 
 typedef struct
 {
   int top;
-  int items[MAX_LIMIT];
-} IntegerStack;
+  int items[STACK_CAPACITY];
+} Stack;
 
-typedef struct
+void initStack(Stack *s)
 {
-  int top;
-  char items[MAX_LIMIT];
-} CharacterStack;
-
-void initializeIntegerStack(IntegerStack *stack)
-{
-  stack->top = -1;
+  s->top = -1;
 }
 
-int isIntegerStackEmpty(const IntegerStack *stack)
+int isEmpty(const Stack *s)
 {
-  return stack->top < 0;
+
+  return s->top < 0;
 }
 
-void pushToIntegerStack(IntegerStack *stack, int value)
+void push(Stack *s, int value)
 {
-  if (stack->top < MAX_LIMIT - 1)
+  if (s->top < STACK_CAPACITY - 1)
+    s->items[++s->top] = value;
+}
+
+int pop(Stack *s, int *value)
+{
+  if (isEmpty(s) || value == NULL) // Check for NULL pointer
   {
-    stack->items[++stack->top] = value;
+    return 0; // Failure
   }
+  *value = s->items[s->top--];
+  return 1; // Success
 }
 
-int popFromIntegerStack(IntegerStack *stack)
+int peek(const Stack *s, int *value)
 {
-  if (isIntegerStackEmpty(stack))
+  if (isEmpty(s) || value == NULL)
   {
-    return STACK_EMPTY;
+    return 0; // Failure
   }
-  return stack->items[stack->top--];
+  *value = s->items[s->top];
+  return 1; // Success
 }
 
-void initializeCharacterStack(CharacterStack *stack)
+int getOperatorPrecedence(char operatorChar)
 {
-  stack->top = -1;
-}
-
-int isCharacterStackEmpty(const CharacterStack *stack)
-{
-  return stack->top < 0;
-}
-
-void pushToCharacterStack(CharacterStack *stack, char value)
-{
-  if (stack->top < MAX_LIMIT - 1)
-  {
-    stack->items[++stack->top] = value;
-  }
-}
-
-char popFromCharacterStack(CharacterStack *stack)
-{
-  if (isCharacterStackEmpty(stack))
-  {
-    return '\0';
-  }
-  return stack->items[stack->top--];
-}
-
-char peekAtCharacterStack(const CharacterStack *stack)
-{
-  if (isCharacterStackEmpty(stack))
-  {
-    return '\0';
-  }
-  return stack->items[stack->top];
-}
-
-int getOperatorPrecedence(char operator)
-{
-  if (operator== '*' || operator== '/')
-  {
+  if (operatorChar == '*' || operatorChar == '/')
     return 2;
-  }
-  if (operator== '+' || operator== '-')
-  {
+  if (operatorChar == '+' || operatorChar == '-')
     return 1;
-  }
   return 0;
 }
 
@@ -119,101 +82,142 @@ int applyOperator(int operand1, int operand2, char operator, int * errorFlag)
 
 int evaluateExpression(const char *expression, int *errorFlag)
 {
-  IntegerStack valueStack;
-  CharacterStack operatorStack;
-  initializeIntegerStack(&valueStack);
-  initializeCharacterStack(&operatorStack);
+  Stack operandStack;
+  Stack operatorStack;
+  initStack(&operandStack);
+  initStack(&operatorStack);
 
   int i = 0;
   while (expression[i] != '\0')
   {
-    if (isspace(expression[i]))
+    if (isspace((unsigned char)expression[i]))
     {
       i++;
       continue;
     }
 
-    if (isdigit(expression[i]))
+    if (isdigit((unsigned char)expression[i]))
     {
       int currentNumber = 0;
-      while (isdigit(expression[i]))
+      while (isdigit((unsigned char)expression[i]))
       {
         currentNumber = currentNumber * 10 + (expression[i] - '0');
         i++;
       }
-      pushToIntegerStack(&valueStack, currentNumber);
+      push(&operandStack, currentNumber);
     }
     else if (strchr("+-*/", expression[i]))
     {
-      while (!isCharacterStackEmpty(&operatorStack) &&
-             getOperatorPrecedence(peekAtCharacterStack(&operatorStack)) >= getOperatorPrecedence(expression[i]))
+      char currentOperator = expression[i];
+      while (!isEmpty(&operatorStack))
       {
-        int operand2 = popFromIntegerStack(&valueStack);
-        int operand1 = popFromIntegerStack(&valueStack);
-        char operator= popFromCharacterStack(&operatorStack);
-
-        if (operand1 == STACK_EMPTY || operand2 == STACK_EMPTY)
+        int peekedOperator;
+        if (!peek(&operatorStack, &peekedOperator))
         {
           *errorFlag = 1;
           return 0;
         }
-
-        pushToIntegerStack(&valueStack, applyOperator(operand1, operand2, operator, errorFlag));
-        if (*errorFlag)
+        char topOp = (char)peekedOperator;
+        if (getOperatorPrecedence(topOp) >= getOperatorPrecedence(currentOperator))
         {
-          return 0;
+          int operand2;
+          if (!pop(&operandStack, &operand2))
+          {
+            *errorFlag = 1;
+            return 0;
+          }
+          // int operand1 = pop(&operandStack);
+          int operand1;
+          if (!pop(&operandStack, &operand1))
+          {
+            *errorFlag = 1;
+            return 0;
+          }
+
+          int poppedOperator;
+          if (!pop(&operatorStack, &poppedOperator))
+          {
+            *errorFlag = 1;
+            return 0; // Error: unexpected empty stack
+          }
+
+          char operatorChar = (char)poppedOperator;
+
+          int operationResult = applyOperator(operand1, operand2, operatorChar, errorFlag);
+          if (*errorFlag)
+            return 0;
+          push(&operandStack, operationResult);
         }
+        else
+          break;
       }
-      pushToCharacterStack(&operatorStack, expression[i]);
+      push(&operatorStack, (int)currentOperator); // store char as int
       i++;
     }
     else
     {
-      *errorFlag = 1; // Invalid character
+      *errorFlag = 1; // invalid character
       return 0;
     }
   }
 
-  while (!isCharacterStackEmpty(&operatorStack))
+  while (!isEmpty(&operatorStack))
   {
-    int operand2 = popFromIntegerStack(&valueStack);
-    int operand1 = popFromIntegerStack(&valueStack);
-    char operator= popFromCharacterStack(&operatorStack);
-
-    if (operand1 == STACK_EMPTY || operand2 == STACK_EMPTY)
+    int operand2;
+    if (!pop(&operandStack, &operand2))
     {
       *errorFlag = 1;
       return 0;
     }
 
-    pushToIntegerStack(&valueStack, applyOperator(operand1, operand2, operator, errorFlag));
-    if (*errorFlag)
+    int operand1;
+    if (!pop(&operandStack, &operand1))
     {
+      *errorFlag = 1;
       return 0;
     }
+
+    int poppedOperator;
+    if (!pop(&operatorStack, &poppedOperator))
+    {
+      *errorFlag = 1;
+      return 0;
+    }
+
+    char operatorChar = (char)poppedOperator;
+    int operationResult = applyOperator(operand1, operand2, operatorChar, errorFlag);
+    if (*errorFlag)
+      return 0;
+    push(&operandStack, operationResult);
   }
 
-  return popFromIntegerStack(&valueStack);
+  int finalResult;
+  if (!pop(&operandStack, &finalResult))
+  {
+    *errorFlag = 1;
+    return 0;
+  }
+  return finalResult;
 }
 
-int main()
+int main(void)
 {
-  char expression[MAX_LIMIT];
+  char expression[STACK_CAPACITY];
   printf("Enter your expression: ");
-  fgets(expression, sizeof(expression), stdin);
+  if (!fgets(expression, sizeof(expression), stdin))
+  {
+    printf("Error reading input.\n");
+    return 1;
+  }
   expression[strcspn(expression, "\n")] = '\0';
 
   int errorFlag = 0;
   int result = evaluateExpression(expression, &errorFlag);
 
   if (errorFlag)
-  {
     printf("Error: Invalid expression or division by zero.\n");
-  }
   else
-  {
     printf("Result: %d\n", result);
-  }
 
   return 0;
 }
