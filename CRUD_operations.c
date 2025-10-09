@@ -4,12 +4,12 @@
 
 #define SIZE_LIMIT 1000
 
-struct User
+typedef struct User
 {
   int id;
   char name[SIZE_LIMIT];
   int age;
-};
+} User;
 
 int loadUsersFromFile(const char *fileName, struct User userList[])
 {
@@ -32,7 +32,7 @@ int loadUsersFromFile(const char *fileName, struct User userList[])
 int writeToFile(const char *fileName, struct User *data, int count, int append)
 {
 
-  FILE *filePointer;
+  FILE *filePointer = NULL;
 
   if (append)
   {
@@ -64,9 +64,9 @@ int writeToFile(const char *fileName, struct User *data, int count, int append)
   return 1;
 }
 
-void displayAllUsers()
+void displayAllUsers(void)
 {
-  struct User userList[SIZE_LIMIT];
+  User userList[SIZE_LIMIT];
   int userCount = loadUsersFromFile("users.dat", userList);
 
   if (userCount == 0)
@@ -83,7 +83,7 @@ void displayAllUsers()
 
 void addUser(int id, const char *name, int age)
 {
-  struct User userList[SIZE_LIMIT];
+  User userList[SIZE_LIMIT];
   int userCount = loadUsersFromFile("users.dat", userList);
 
   for (int i = 0; i < userCount; i++)
@@ -95,9 +95,9 @@ void addUser(int id, const char *name, int age)
     }
   }
 
-  struct User newUser;
+  User newUser;
   newUser.id = id;
-  strcpy(newUser.name, name);
+  strncpy(newUser.name, name, SIZE_LIMIT - 1);
   newUser.name[SIZE_LIMIT - 1] = '\0';
   newUser.age = age;
 
@@ -112,7 +112,7 @@ void addUser(int id, const char *name, int age)
 
 void updateUser(int id, const char *name, int age)
 {
-  struct User userList[SIZE_LIMIT];
+  User userList[SIZE_LIMIT];
   int userCount = loadUsersFromFile("users.dat", userList);
   int wasUserFound = 0;
 
@@ -120,7 +120,7 @@ void updateUser(int id, const char *name, int age)
   {
     if (userList[i].id == id)
     {
-      strcpy(userList[i].name, name);
+      strncpy(userList[i].name, name, SIZE_LIMIT - 1);
       userList[i].name[SIZE_LIMIT - 1] = '\0';
       userList[i].age = age;
       wasUserFound = 1;
@@ -146,7 +146,7 @@ void updateUser(int id, const char *name, int age)
 
 void deleteUser(int id)
 {
-  struct User userList[SIZE_LIMIT];
+  User userList[SIZE_LIMIT];
   int userCount = loadUsersFromFile("users.dat", userList);
   int wasUserFound = 0;
 
