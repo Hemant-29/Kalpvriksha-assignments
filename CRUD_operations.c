@@ -11,71 +11,80 @@ struct User
   int age;
 };
 
-void writeToFile(const char *fileName, const char *content, const char *mode)
-{
-  FILE *filePointer = fopen(fileName, mode);
-  if (filePointer != NULL)
-  {
-    fputs(content, filePointer);
-    fclose(filePointer);
-  }
-  else
-  {
-    printf("Error: Could not open file!\n");
-  }
-}
-
-void readFromFile(const char *fileName)
-{
-  FILE *filePointer = fopen(fileName, "r");
-  if (filePointer != NULL)
-  {
-    char fileContent[SIZE_LIMIT];
-    while (fgets(fileContent, sizeof(fileContent), filePointer))
-    {
-      printf("%s", fileContent);
-    }
-    fclose(filePointer);
-  }
-  else
-  {
-    printf("Error: Could not open file!\n");
-  }
-}
-
 int loadUsersFromFile(const char *fileName, struct User userList[])
 {
-  FILE *filePointer = fopen(fileName, "r");
+  FILE *filePointer = fopen(fileName, "rb");
   if (!filePointer)
   {
     return 0;
   }
 
   int userCount = 0;
-  // Format string reads up to 999 chars until a ',' to prevent buffer overflow.
-  while (fscanf(filePointer, " {id: %d, name: %999[^,], age: %d}",
-                &userList[userCount].id, userList[userCount].name, &userList[userCount].age) == 3)
+  while (userCount < SIZE_LIMIT && fread(&userList[userCount], sizeof(struct User), 1, filePointer) == 1)
   {
     userCount++;
-    if (userCount >= SIZE_LIMIT)
-    {
-      break;
-    }
   }
 
   fclose(filePointer);
   return userCount;
 }
 
+int writeToFile(const char *fileName, struct User *data, int count, int append)
+{
+
+  FILE *filePointer;
+
+  if (append)
+  {
+    filePointer = fopen(fileName, "ab");
+  }
+  else
+  {
+    filePointer = fopen(fileName, "wb");
+  }
+
+  if (!filePointer)
+  {
+    printf("Error: Could not open file for %s!\n", append ? "appending" : "writing");
+    return 0;
+  }
+
+  if (count > 0)
+  {
+    int written = fwrite(data, sizeof(struct User), count, filePointer);
+    if (written != count)
+    {
+      printf("Warning: wrote %d of %d records.\n", written, count);
+      fclose(filePointer);
+      return 0;
+    }
+  }
+
+  fclose(filePointer);
+  return 1;
+}
+
 void displayAllUsers()
 {
-  readFromFile("users.txt");
+  struct User userList[SIZE_LIMIT];
+  int userCount = loadUsersFromFile("users.dat", userList);
+
+  if (userCount == 0)
+  {
+    printf("No users found!\n");
+    return;
+  }
+
+  for (int i = 0; i < userCount; i++)
+  {
+    printf("ID: %d, Name: %s, Age: %d\n", userList[i].id, userList[i].name, userList[i].age);
+  }
 }
 
 void addUser(int id, const char *name, int age)
 {
   struct User userList[SIZE_LIMIT];
-  int userCount = loadUsersFromFile("users.txt", userList);
+  int userCount = loadUsersFromFile("users.dat", userList);
 
   for (int i = 0; i < userCount; i++)
   {
@@ -86,9 +95,17 @@ void addUser(int id, const char *name, int age)
     }
   }
 
-  char formattedUserData[SIZE_LIMIT];
-  sprintf(formattedUserData, "{id: %d, name: %s, age: %d}\n", id, name, age);
-  writeToFile("users.txt", formattedUserData, "a");
+  struct User newUser;
+  newUser.id = id;
+  strcpy(newUser.name, name);
+  newUser.name[SIZE_LIMIT - 1] = '\0';
+  newUser.age = age;
+
+  if (!writeToFile("users.dat", &newUser, 1, 1)) // append
+  {
+    printf("Error: Could not open file for appending!\n");
+    return;
+  }
 
   printf("User with ID %d added successfully!\n", id);
 }
@@ -96,7 +113,7 @@ void addUser(int id, const char *name, int age)
 void updateUser(int id, const char *name, int age)
 {
   struct User userList[SIZE_LIMIT];
-  int userCount = loadUsersFromFile("users.txt", userList);
+  int userCount = loadUsersFromFile("users.dat", userList);
   int wasUserFound = 0;
 
   for (int i = 0; i < userCount; i++)
@@ -104,6 +121,7 @@ void updateUser(int id, const char *name, int age)
     if (userList[i].id == id)
     {
       strcpy(userList[i].name, name);
+      userList[i].name[SIZE_LIMIT - 1] = '\0';
       userList[i].age = age;
       wasUserFound = 1;
       break;
@@ -116,12 +134,11 @@ void updateUser(int id, const char *name, int age)
     return;
   }
 
-  writeToFile("users.txt", "", "w"); // Clear the file before rewriting
-  for (int i = 0; i < userCount; i++)
+  // Rewrite binary file with updated data
+  if (!writeToFile("users.dat", userList, userCount, 0)) // overwrite
   {
-    char formattedUserData[SIZE_LIMIT];
-    sprintf(formattedUserData, "{id: %d, name: %s, age: %d}\n", userList[i].id, userList[i].name, userList[i].age);
-    writeToFile("users.txt", formattedUserData, "a");
+    printf("Error: Could not open file for writing!\n");
+    return;
   }
 
   printf("User with ID %d updated successfully!\n", id);
@@ -130,7 +147,7 @@ void updateUser(int id, const char *name, int age)
 void deleteUser(int id)
 {
   struct User userList[SIZE_LIMIT];
-  int userCount = loadUsersFromFile("users.txt", userList);
+  int userCount = loadUsersFromFile("users.dat", userList);
   int wasUserFound = 0;
 
   for (int i = 0; i < userCount; i++)
@@ -155,12 +172,11 @@ void deleteUser(int id)
     return;
   }
 
-  writeToFile("users.txt", "", "w"); // Clear the file before rewriting
-  for (int i = 0; i < userCount; i++)
+  // Rewrite binary file with remaining users
+  if (!writeToFile("users.dat", userList, userCount, 0)) // overwrite
   {
-    char formattedUserData[SIZE_LIMIT];
-    sprintf(formattedUserData, "{id: %d, name: %s, age: %d}\n", userList[i].id, userList[i].name, userList[i].age);
-    writeToFile("users.txt", formattedUserData, "a");
+    printf("Error: Could not open file for writing!\n");
+    return;
   }
 }
 
