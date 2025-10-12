@@ -3,10 +3,14 @@
 #include <stdlib.h>
 
 #define SIZE_LIMIT 1000
+#define GRADE_A 85
+#define GRADE_B 70
+#define GRADE_C 50
+#define GRADE_D 35
 
 typedef struct
 {
-  int rollNo;
+  int RollNumber;
   char name[SIZE_LIMIT];
   int marksSubject1;
   int marksSubject2;
@@ -27,19 +31,19 @@ char fetchGrade(const float average)
 {
   char grade = '\0';
 
-  if (average >= 85)
+  if (average >= GRADE_A)
   {
     grade = 'A';
   }
-  else if (average >= 70)
+  else if (average >= GRADE_B)
   {
     grade = 'B';
   }
-  else if (average >= 50)
+  else if (average >= GRADE_C)
   {
     grade = 'C';
   }
-  else if (average >= 35)
+  else if (average >= GRADE_D)
   {
     grade = 'D';
   }
@@ -87,19 +91,78 @@ void printPerformance(const char grade)
   printf("\n");
 }
 
-void recursivePrintRollNo(const Student studentsArray[], int index, int studentCount)
+void printRollNumber(const Student students[], int index, int studentCount)
 {
   if (index >= studentCount)
   {
     return;
   }
 
-  if (studentsArray[index].rollNo)
+  if (students[index].RollNumber)
   {
-    printf("%d ", studentsArray[index].rollNo);
+    printf("%d ", students[index].RollNumber);
   }
   index++;
-  recursivePrintRollNo(studentsArray, index, studentCount);
+  printRollNumber(students, index, studentCount);
+}
+
+void inputStudentDetails(Student students[], int studentCount)
+{
+  for (int studentIndex = 0; studentIndex < studentCount; studentIndex++)
+  {
+    printf("\nEnter: Roll No. Name Marks 1 Marks 2 Marks 3 (for student %d): \n", studentIndex + 1);
+    int RollNumber;
+    char name[SIZE_LIMIT];
+    int marks1;
+    int marks2;
+    int marks3;
+    scanf("%d %999s %d %d %d", &RollNumber, name, &marks1, &marks2, &marks3);
+
+    if (RollNumber <= 0)
+    {
+      printf("Roll No. can't be negative, try again\n");
+      studentIndex--;
+      continue;
+    }
+
+    if (marks1 < 0 || marks1 > 100 || marks2 < 0 || marks2 > 100 || marks3 < 0 || marks3 > 100)
+    {
+      printf("Marks must be in range 0-100, try again\n");
+      studentIndex--;
+      continue;
+    }
+
+    if (strlen(name) == 0)
+    {
+      printf("Invalid Name! Cannot be empty.\n");
+      studentIndex--;
+      continue;
+    }
+
+    students[studentIndex].RollNumber = RollNumber;
+    students[studentIndex].marksSubject1 = marks1;
+    students[studentIndex].marksSubject2 = marks2;
+    students[studentIndex].marksSubject3 = marks3;
+    strcpy(students[studentIndex].name, name);
+  }
+}
+
+void printResults(Student students[], int studentCount)
+{
+  for (int student = 0; student < studentCount; student++)
+  {
+    int total = calculateTotal(&students[student]);
+    float average = total / 3.0;
+    char grade = fetchGrade(average);
+
+    printf("\nRoll no: %d\n", students[student].RollNumber);
+    printf("Name: %s\n", students[student].name);
+    printf("Total marks: %d\n", total);
+    printf("Average: %.2f\n", average);
+    printf("Grade: %c\n", grade);
+
+    printPerformance(grade);
+  }
 }
 
 int main()
@@ -109,42 +172,14 @@ int main()
   printf("No. of students: ");
   scanf("%d", &studentCount);
 
-  Student studentsArray[studentCount];
+  Student students[studentCount];
 
-  for (int studentIndex = 0; studentIndex < studentCount; studentIndex++)
-  {
-    printf("\nEnter: Roll No. Name Marks 1 Marks 2 Marks 3 (for student %d): \n", studentIndex + 1);
-    int rollNo;
-    char name[SIZE_LIMIT];
-    int marks1;
-    int marks2;
-    int marks3;
-    scanf("%d %999s %d %d %d", &rollNo, name, &marks1, &marks2, &marks3);
+  inputStudentDetails(students, studentCount);
 
-    studentsArray[studentIndex].rollNo = rollNo;
-    studentsArray[studentIndex].marksSubject1 = marks1;
-    studentsArray[studentIndex].marksSubject2 = marks2;
-    studentsArray[studentIndex].marksSubject3 = marks3;
-    strcpy(studentsArray[studentIndex].name, name);
-  }
-
-  for (int student = 0; student < studentCount; student++)
-  {
-    int total = calculateTotal(&studentsArray[student]);
-    float average = total / 3.0;
-    char grade = fetchGrade(average);
-
-    printf("\nRoll no: %d\n", studentsArray[student].rollNo);
-    printf("Name: %s\n", studentsArray[student].name);
-    printf("Total marks: %d\n", total);
-    printf("Average: %.2f\n", average);
-    printf("Grade: %c\n", grade);
-
-    printPerformance(grade);
-  }
+  printResults(students, studentCount);
 
   printf("List of Roll Numbers (via recursion): ");
-  recursivePrintRollNo(studentsArray, 0, studentCount);
+  printRollNumber(students, 0, studentCount);
 
   return 0;
 }
