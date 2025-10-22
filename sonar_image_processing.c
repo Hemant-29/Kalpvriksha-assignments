@@ -118,8 +118,6 @@ void applySmoothingFilter(int const size, int *matrix)
     for (int column = 0; column < size; column++)
     {
       int *currentElement = matrix + row * size + column;
-      int *elementVerticallyAbove = currentElement - size;
-      int *elementVerticallyBelow = currentElement + size;
       int sum = 0;
       int count = 0;
 
@@ -132,10 +130,6 @@ void applySmoothingFilter(int const size, int *matrix)
             int neighborElement = *(matrix + windowRow * size + windowColumn);
             sum += unpackLowerByte(neighborElement);
             count++;
-          }
-          else
-          {
-            continue;
           }
         }
       }
