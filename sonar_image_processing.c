@@ -167,6 +167,7 @@ int main(void)
   if (size <= 0)
   {
     printf("Error: Invalid matrix size\n");
+    return 1;
   }
 
   int matrix[size][size];
