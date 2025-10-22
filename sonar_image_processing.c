@@ -37,12 +37,8 @@ int unpackLowerByte(int combinedValue)
   return lowerByte;
 }
 
-void generateRandomMatrix(int const size, int *matrix)
+void generateRandomMatrix(int const size, int (*matrixPointer)[size])
 {
-  if (matrix == NULL)
-  {
-    return;
-  }
 
   srand(time(0)); // generate random seed once at the start
 
@@ -51,30 +47,30 @@ void generateRandomMatrix(int const size, int *matrix)
     for (int column = 0; column < size; column++)
     {
       int randomNumber = rand() % (INPUT_UPPER_LIMIT + 1); // for getting number in range 0 - 255
-      *(matrix + row * size + column) = randomNumber;
+      *(*(matrixPointer + row) + column) = randomNumber;
     }
   }
 }
 
-void transposeMatrix(int const size, int *matrix)
+void transposeMatrix(int const size, int (*matrixPointer)[size])
 {
   for (int row = 0; row < size; row++)
   {
     for (int column = row + 1; column < size; column++)
     {
-      int temporary = *(matrix + row * size + column);
-      *(matrix + row * size + column) = *(matrix + column * size + row);
-      *(matrix + column * size + row) = temporary;
+      int temporary = *(*(matrixPointer + row) + column);
+      *(*(matrixPointer + row) + column) = *(*(matrixPointer + column) + row);
+      *(*(matrixPointer + column) + row) = temporary;
     }
   }
 }
 
-void reverseMatrixRows(int const size, int *matrix)
+void reverseMatrixRows(int const size, int (*matrixPointer)[size])
 {
   for (int row = 0; row < size; row++)
   {
-    int *columnStart = matrix + row * size;
-    int *columnEnd = matrix + row * size + size - 1;
+    int *columnStart = *(matrixPointer + row);
+    int *columnEnd = *(matrixPointer + row) + size - 1;
     while (columnStart < columnEnd)
     {
       int temporary = *columnStart;
@@ -86,38 +82,31 @@ void reverseMatrixRows(int const size, int *matrix)
   }
 }
 
-void rotateMatrixClockwise(int const size, int *matrix)
+void rotateMatrixClockwise(int const size, int (*matrixPointer)[size])
 {
-  if (matrix == NULL)
-  {
-    return;
-  }
-  transposeMatrix(size, matrix);
-  reverseMatrixRows(size, matrix);
+
+  transposeMatrix(size, matrixPointer);
+  reverseMatrixRows(size, matrixPointer);
 }
 
-void unpackMatrixValues(int const size, int *matrix)
+void unpackMatrixValues(int const size, int (*matrixPointer)[size])
 {
   for (int row = 0; row < size; row++)
   {
     for (int column = 0; column < size; column++)
     {
-      *(matrix + row * size + column) = unpackHigherByte(*(matrix + row * size + column));
+      *(*(matrixPointer + row) + column) = unpackHigherByte(*(*(matrixPointer + row) + column));
     }
   }
 }
 
-void applySmoothingFilter(int const size, int *matrix)
+void applySmoothingFilter(int const size, int (*matrixPointer)[size])
 {
-  if (matrix == NULL)
-  {
-    return;
-  }
   for (int row = 0; row < size; row++)
   {
     for (int column = 0; column < size; column++)
     {
-      int *currentElement = matrix + row * size + column;
+      int *currentElement = (*(matrixPointer + row) + column);
       int sum = 0;
       int count = 0;
 
@@ -127,7 +116,7 @@ void applySmoothingFilter(int const size, int *matrix)
         {
           if (windowRow >= 0 && windowRow <= size - 1 && windowColumn >= 0 && windowColumn <= size - 1)
           {
-            int neighborElement = *(matrix + windowRow * size + windowColumn);
+            int neighborElement = *(*(matrixPointer + windowRow) + windowColumn);
             sum += unpackLowerByte(neighborElement);
             count++;
           }
@@ -142,20 +131,16 @@ void applySmoothingFilter(int const size, int *matrix)
       }
     }
   }
-  unpackMatrixValues(size, matrix);
+  unpackMatrixValues(size, matrixPointer);
 }
 
-void printMatrix(int const size, int const *matrix)
+void printMatrix(int const size, int (*matrixPointer)[size])
 {
-  if (matrix == NULL)
-  {
-    return;
-  }
   for (int row = 0; row < size; row++)
   {
     for (int column = 0; column < size; column++)
     {
-      int element = *(matrix + row * size + column);
+      int element = *(*(matrixPointer + row) + column);
       if (abs(element) < 10)
       {
         printf("00%d ", element);
@@ -184,14 +169,9 @@ int main(void)
     printf("Error: Invalid matrix size\n");
   }
 
-  int *matrix = malloc(size * size * sizeof(int));
-  if (matrix == NULL)
-  {
-    printf("Error in Allocating Memory\n");
-  }
+  int matrix[size][size];
 
   generateRandomMatrix(size, matrix);
-
   printf("\nOriginal Randomly Generated Matrix: \n");
   printMatrix(size, matrix);
 
@@ -203,7 +183,5 @@ int main(void)
   applySmoothingFilter(size, matrix);
   printMatrix(size, matrix);
 
-  free(matrix);
-  matrix = NULL;
   return 0;
 }
