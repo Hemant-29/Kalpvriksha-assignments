@@ -51,7 +51,7 @@ int stringCompare(const char *target, const char *toSearch)
   return 1;
 }
 
-int stringContains(const char *targetString, const char *searchTerm)
+int containsIgnoreCase(const char *targetString, const char *searchTerm)
 {
   while (*targetString != '\0')
   {
@@ -233,7 +233,7 @@ void handleSearchByName(const Product *productList, int size)
   int count = 0;
   for (int index = 0; index < size; index++)
   {
-    if (stringContains(productList[index].name, name) == 1)
+    if (containsIgnoreCase(productList[index].name, name) == 1)
     {
       printf("Product found: \n");
       printProduct(productList[index]);
