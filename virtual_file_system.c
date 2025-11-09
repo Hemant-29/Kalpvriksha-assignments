@@ -269,23 +269,21 @@ FileNode *insertFileNodeAsChild(FileNode *head, char name[], int isDirectory)
   return head;
 }
 
-FileNode *deleteFileNodeAtPosition(FileNode *head, int position, FreeBlock **freeBlockHead, FreeBlock **freeBlockTail, char virtualDisk[][BLOCK_SIZE])
+int deleteFileNodeAtHead(FileNode *head, FreeBlock **freeBlockHead, FreeBlock **freeBlockTail, char virtualDisk[][BLOCK_SIZE])
 {
-  // ____Implement free blockPointers when fileNode is a file ____
-
   if (head == NULL)
   {
-    return NULL;
+    return 0;
   }
 
-  // Single Node case
+  // __Single Node case__
   if (head->next == head)
   {
     // Check for child Nodes
     if (head->child != NULL)
     {
-      printf("Error: Can't delete Directory, delete sub-folder and files first!\n");
-      return head;
+      printf("can't delete Directory, delete sub-folder and files first!\n");
+      return 0;
     }
     // Update Parent Node
     if (head->parent)
@@ -299,7 +297,7 @@ FileNode *deleteFileNodeAtPosition(FileNode *head, int position, FreeBlock **fre
       if (freeBlockHead == NULL || freeBlockTail == NULL || virtualDisk == NULL)
       {
         printf("Error: Invalid parameters!\n");
-        return head;
+        return 0;
       }
       for (int index = 0; index < head->totalBlocks; index++)
       {
@@ -313,23 +311,17 @@ FileNode *deleteFileNodeAtPosition(FileNode *head, int position, FreeBlock **fre
 
     // Delete
     free(head);
-    return NULL;
+    return 1;
   }
 
-  int length = getLengthCircularLinkedList(head);
-
-  if (position < 0 || position >= length)
-  {
-    printf("Invalid position\n");
-    return head;
-  }
-  else if (position == 0)
+  // __Other cases__
+  else
   {
     // Check for child Nodes
     if (head->child != NULL)
     {
-      printf("Error: Can't delete Directory, delete sub-folder and files first!\n");
-      return head;
+      printf("can't delete Directory, delete sub-folder and files first!\n");
+      return 0;
     }
 
     // Update Parent
@@ -347,7 +339,7 @@ FileNode *deleteFileNodeAtPosition(FileNode *head, int position, FreeBlock **fre
       if (freeBlockHead == NULL || freeBlockTail == NULL || virtualDisk == NULL)
       {
         printf("Error: Invalid parameters!\n");
-        return head;
+        return 0;
       }
       for (int index = 0; index < head->totalBlocks; index++)
       {
@@ -367,62 +359,9 @@ FileNode *deleteFileNodeAtPosition(FileNode *head, int position, FreeBlock **fre
     nextNode->previous = previousNode;
 
     free(head);
-    return nextNode;
+    return 1;
   }
-  else if (position > 0 && position < length)
-  {
-    // Traverse to Node to delete
-    FileNode *currentNode = head;
-    while (position != 0)
-    {
-      currentNode = currentNode->next;
-      position--;
-    }
-
-    // Check for child Nodes
-    if (currentNode->child != NULL)
-    {
-      printf("Error: Can't delete Directory, delete sub-folder and files first!\n");
-      return head;
-    }
-
-    // Update Parent
-    if (currentNode->parent)
-    {
-      if (currentNode->parent->child == currentNode)
-      {
-        currentNode->parent->child = currentNode->next;
-      }
-    }
-
-    // free the blockPointers
-    if (currentNode->isDirectory != 1)
-    {
-      if (freeBlockHead == NULL || freeBlockTail == NULL || virtualDisk == NULL)
-      {
-        printf("Error: Invalid parameters!\n");
-        return head;
-      }
-      for (int index = 0; index < currentNode->totalBlocks; index++)
-      {
-
-        int address = currentNode->blockPointers[index];
-        insertFreeBlockAtTail(freeBlockHead, freeBlockTail, address);
-
-        // Free the virtual disk block
-        strcpy(virtualDisk[address], "");
-      }
-    }
-
-    // Delete Node
-    FileNode *nextNode = currentNode->next;
-    FileNode *previousNode = currentNode->previous;
-    previousNode->next = nextNode;
-    nextNode->previous = previousNode;
-
-    free(currentNode);
-  }
-  return head;
+  return 0;
 }
 
 // __Command Functions__
@@ -450,7 +389,6 @@ FileNode *searchFileInDirectory(FileNode *currentDirectory, char *fileName)
     temp = temp->next;
   } while (temp != childHead);
 
-  printf("%s not found\n", fileName);
   return NULL;
 }
 
@@ -515,46 +453,46 @@ void removeDirectory(FileNode **currentDirectory, char searchName[MAX_NAME_SIZE]
     return;
   }
 
-  // if searchName is root directory
-  if (strcmp((*currentDirectory)->name, "/") == 0)
-  {
-    printf("Can't delete root directory\n");
-    return;
-  }
-
   // if name is of current directory
   if (strcmp((*currentDirectory)->name, searchName) == 0)
   {
-    deleteFileNodeAtPosition(*currentDirectory, 0, NULL, NULL, NULL);
-    printf("Directory removed successfully\n");
+    // if searchName is root directory
+    if (strcmp(searchName, "/") == 0)
+    {
+      printf("Can't delete the root directory\n");
+      return;
+    }
+
+    FileNode *parent = (*currentDirectory)->parent;
+    int result = deleteFileNodeAtHead(*currentDirectory, NULL, NULL, NULL);
+    if (result == 1)
+    {
+      *currentDirectory = parent;
+      printf("Directory '%s' removed successfully\n", searchName);
+    }
     return;
   }
 
   // Search for directory amongst children
-  if ((*currentDirectory)->child)
+  FileNode *foundDirectory = searchFileInDirectory(*currentDirectory, searchName);
+  if (foundDirectory == NULL)
   {
-    FileNode *childHead = (*currentDirectory)->child;
-    if (childHead == NULL)
-    {
-      printf("Directory not found\n");
-      return;
-    }
-    FileNode *currentNode = childHead;
-    do
-    {
-      if (strcmp(currentNode->name, searchName) == 0)
-      {
-        if (currentNode->isDirectory == 1)
-        {
-          deleteFileNodeAtPosition(currentNode, 0, NULL, NULL, NULL);
-          printf("Directory removed successfully\n");
-          return;
-        }
-      }
-      currentNode = currentNode->next;
-    } while (currentNode != childHead);
+    printf("Directory '%s' not found\n", searchName);
+    return;
   }
-  printf("Directory not found\n");
+
+  if (foundDirectory->isDirectory == 1)
+  {
+    int result = deleteFileNodeAtHead(foundDirectory, NULL, NULL, NULL);
+    if (result == 1)
+    {
+      printf("Directory '%s' removed successfully\n", searchName);
+    }
+  }
+  else
+  {
+    printf("Directory '%s' not found\n", searchName);
+  }
 }
 
 void deleteFile(FileNode **currentDirectory, char searchName[MAX_NAME_SIZE], FreeBlock **freeBlockHead, FreeBlock **freeBlockTail, char virtualDisk[][BLOCK_SIZE])
@@ -569,30 +507,25 @@ void deleteFile(FileNode **currentDirectory, char searchName[MAX_NAME_SIZE], Fre
   }
 
   // Search for file amongst children
-  if ((*currentDirectory)->child)
+  FileNode *foundFile = searchFileInDirectory(*currentDirectory, searchName);
+  if (foundFile == NULL)
   {
-    FileNode *childHead = (*currentDirectory)->child;
-    if (childHead == NULL)
+    printf("File '%s' not found\n", searchName);
+    return;
+  }
+  if (foundFile->isDirectory == 0)
+  {
+    int result = deleteFileNodeAtHead(foundFile, freeBlockHead, freeBlockTail, virtualDisk);
+    if (result == 1)
     {
-      printf("File not found\n");
+      printf("File '%s' deleted successfully\n", searchName);
       return;
     }
-    FileNode *currentNode = childHead;
-    do
-    {
-      if (strcmp(currentNode->name, searchName) == 0)
-      {
-        if (currentNode->isDirectory == 1)
-        {
-          deleteFileNodeAtPosition(currentNode, 0, freeBlockHead, freeBlockTail, virtualDisk);
-          printf("File deleted successfully\n");
-          return;
-        }
-      }
-      currentNode = currentNode->next;
-    } while (currentNode != childHead);
   }
-  printf("File not found\n");
+  else
+  {
+    printf("File '%s' not found\n", searchName);
+  }
 }
 
 void createFile(FileNode **currentDirectory, char name[MAX_NAME_SIZE])
@@ -624,28 +557,27 @@ void changeDirectory(FileNode **currentDirectory, char search[MAX_NAME_SIZE])
       printf("Moved to %s\n", (*currentDirectory)->name);
       return;
     }
+    else
+    {
+      printf("can't move back from %s\n", (*currentDirectory)->name);
+      return;
+    }
   }
 
-  if ((*currentDirectory)->child)
+  FileNode *foundDirectory = searchFileInDirectory(*currentDirectory, search);
+  if (foundDirectory == NULL)
   {
-    FileNode *childHead = (*currentDirectory)->child;
-    FileNode *temp = childHead;
-    do
-    {
-      if (strcmp(temp->name, search) == 0)
-      {
-        if (temp->isDirectory == 1)
-        {
-          *currentDirectory = temp;
-          printf("Moved to ");
-          printWorkingDirectory(*currentDirectory);
-          printf("\n");
-          return;
-        }
-      }
-      temp = temp->next;
-    } while (temp != childHead);
+    printf("Directory %s not found\n", search);
   }
+  if (foundDirectory->isDirectory == 1)
+  {
+    *currentDirectory = foundDirectory;
+    printf("Moved to ");
+    printWorkingDirectory(*currentDirectory);
+    printf("\n");
+    return;
+  }
+
   printf("Directory not found\n");
 }
 
@@ -657,7 +589,7 @@ void writeFile(FileNode *file, char *str, FreeBlock **head, FreeBlock **tail, ch
     return;
   }
 
-  if (file->isDirectory == 1)
+  if (file->isDirectory != 0)
   {
     printf("Can't write! Invalid File\n");
     return;
@@ -818,13 +750,13 @@ void handleInput(FileNode *root, FileNode **currentDirectory, char virtualDisk[]
   }
 
   // Printing tokens array
-  // printf("Token array is: ");
+  printf("\tToken array is: ");
 
-  // for (int i = 0; i < tokenIndex; i++)
-  // {
-  //   printf("%s, ", tokenArray[i]);
-  // }
-  // printf("\n");
+  for (int i = 0; i < tokenIndex; i++)
+  {
+    printf("%s, ", tokenArray[i]);
+  }
+  printf("\n");
 
   // __Processing input commands__
   if (strcmp(tokenArray[0], "mkdir") == 0)
@@ -871,11 +803,14 @@ void handleInput(FileNode *root, FileNode **currentDirectory, char virtualDisk[]
     }
     else
     {
-      // printf("writing %s to file - %s\n", tokenArray[2], tokenArray[1]);
       FileNode *fileToWrite = searchFileInDirectory(*currentDirectory, tokenArray[1]);
       if (fileToWrite != NULL)
       {
         writeFile(fileToWrite, tokenArray[2], freeBlockHead, freeBlockTail, virtualDisk);
+      }
+      else
+      {
+        printf("File %s not found\n", tokenArray[1]);
       }
     }
   }
@@ -888,11 +823,14 @@ void handleInput(FileNode *root, FileNode **currentDirectory, char virtualDisk[]
     }
     else
     {
-      // printf("reading file - %s\n", tokenArray[1]);
       FileNode *fileToRead = searchFileInDirectory(*currentDirectory, tokenArray[1]);
       if (fileToRead != NULL)
       {
         readFile(fileToRead, virtualDisk);
+      }
+      else
+      {
+        printf("%s not found\n", tokenArray[1]);
       }
     }
   }
