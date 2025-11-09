@@ -734,192 +734,179 @@ void handleInput(FileNode *root, FileNode **currentDirectory, char virtualDisk[]
   scanf("%[^\n]", userInput);
   getchar();
 
-  // __Creating a token's array__
-  char tokenArray[MAX_INPUT_TOKENS][MAX_INPUT] = {'\0'};
-  int tokenIndex = 0;
-
-  char *token = strtok(userInput, " ");
-  while (token != NULL && tokenIndex < MAX_INPUT_TOKENS)
-  {
-    if (token != NULL)
-    {
-      strcpy(tokenArray[tokenIndex], token);
-    }
-    token = strtok(NULL, " ");
-    tokenIndex++;
-  }
-
-  // Printing tokens array
-  printf("\tToken array is: ");
-
-  for (int i = 0; i < tokenIndex; i++)
-  {
-    printf("%s, ", tokenArray[i]);
-  }
-  printf("\n");
+  char *command = strtok(userInput, " ");
+  char *fileName = strtok(NULL, " ");
+  char *data = strtok(NULL, "\"");
 
   // __Processing input commands__
-  if (strcmp(tokenArray[0], "mkdir") == 0)
+  if (strcmp(command, "mkdir") == 0)
   {
-    if (strcmp(tokenArray[1], "") == 0)
+    if (strcmp(fileName, "") == 0)
     {
       printf("Invalid directory name!\n");
     }
     else
     {
-      makeDirectory(currentDirectory, tokenArray[1]);
+      makeDirectory(currentDirectory, fileName);
     }
   }
 
-  else if (strcmp(tokenArray[0], "cd") == 0)
+  else if (strcmp(command, "cd") == 0)
   {
-    if (strcmp(tokenArray[1], "") == 0)
+    if (strcmp(fileName, "") == 0)
     {
       printf("Invalid directory name!\n");
     }
     else
     {
-      changeDirectory(currentDirectory, tokenArray[1]);
+      changeDirectory(currentDirectory, fileName);
     }
   }
 
-  else if (strcmp(tokenArray[0], "create") == 0)
+  else if (strcmp(command, "create") == 0)
   {
-    if (strcmp(tokenArray[1], "") == 0)
+    if (strcmp(fileName, "") == 0)
     {
       printf("Invalid file name!\n");
     }
     else
     {
-      createFile(currentDirectory, tokenArray[1]);
+      createFile(currentDirectory, fileName);
     }
   }
 
-  else if (strcmp(tokenArray[0], "write") == 0)
+  else if (strcmp(command, "write") == 0)
   {
-    if (strcmp(tokenArray[1], "") == 0)
+    if (strcmp(fileName, "") == 0)
     {
       printf("Invalid file name!\n");
     }
+    if (data == NULL)
+    {
+      printf("can't write, invalid data\n");
+    }
     else
     {
-      FileNode *fileToWrite = searchFileInDirectory(*currentDirectory, tokenArray[1]);
+      FileNode *fileToWrite = searchFileInDirectory(*currentDirectory, fileName);
       if (fileToWrite != NULL)
       {
-        writeFile(fileToWrite, tokenArray[2], freeBlockHead, freeBlockTail, virtualDisk);
+
+        writeFile(fileToWrite, data, freeBlockHead, freeBlockTail, virtualDisk);
       }
       else
       {
-        printf("File %s not found\n", tokenArray[1]);
+        printf("File %s not found\n", fileName);
       }
     }
   }
 
-  else if (strcmp(tokenArray[0], "read") == 0)
+  else if (strcmp(command, "read") == 0)
   {
-    if (strcmp(tokenArray[1], "") == 0)
+    if (strcmp(fileName, "") == 0)
     {
       printf("Invalid file name!\n");
     }
     else
     {
-      FileNode *fileToRead = searchFileInDirectory(*currentDirectory, tokenArray[1]);
+      FileNode *fileToRead = searchFileInDirectory(*currentDirectory, fileName);
       if (fileToRead != NULL)
       {
         readFile(fileToRead, virtualDisk);
       }
       else
       {
-        printf("%s not found\n", tokenArray[1]);
+        printf("%s not found\n", fileName);
       }
     }
   }
 
-  else if (strcmp(tokenArray[0], "delete") == 0)
+  else if (strcmp(command, "delete") == 0)
   {
-    if (strcmp(tokenArray[1], "") == 0)
+    if (strcmp(fileName, "") == 0)
     {
       printf("Invalid file name!\n");
     }
     else
     {
-      deleteFile(currentDirectory, tokenArray[1], freeBlockHead, freeBlockTail, virtualDisk);
+      deleteFile(currentDirectory, fileName, freeBlockHead, freeBlockTail, virtualDisk);
     }
   }
 
-  else if (strcmp(tokenArray[0], "rmdir") == 0)
+  else if (strcmp(command, "rmdir") == 0)
   {
-    if (strcmp(tokenArray[1], "") == 0)
+    if (strcmp(fileName, "") == 0)
     {
       printf("Invalid file name!\n");
     }
     else
     {
-      removeDirectory(currentDirectory, tokenArray[1]);
+      removeDirectory(currentDirectory, fileName);
     }
   }
 
-  else if (strcmp(tokenArray[0], "pwd") == 0)
+  else if (strcmp(command, "pwd") == 0)
   {
     printWorkingDirectory(*currentDirectory);
     printf("\n");
   }
 
-  else if (strcmp(tokenArray[0], "ls") == 0)
+  else if (strcmp(command, "ls") == 0)
   {
     // _implement_ not worknig properly
     ListDirectory(*currentDirectory);
   }
 
-  else if (strcmp(tokenArray[0], "df") == 0)
+  else if (strcmp(command, "df") == 0)
   {
     getDiskUsage(*freeBlockHead);
   }
 
-  else if (strcmp(tokenArray[0], "exit") == 0)
+  else if (strcmp(command, "exit") == 0)
   {
     exitProgram(root, virtualDisk, *freeBlockHead, *freeBlockTail);
   }
   else
   {
-    printf("%s is not recognized as a valid command\n", tokenArray[0]);
+    printf("%s is not recognized as a valid command\n", command);
   }
 }
 
 int main()
 {
-  printf("$ ./vfs \n");
-  printf("Compact VFS - ready. Type 'exit' to quit. \n");
+
   char virtualDisk[TOTAL_BLOCKS][BLOCK_SIZE];
+  if (sizeof(virtualDisk) == 0)
+  {
+    printf("Error initializing Virtual Disk\n");
+    return 1;
+  }
 
   // Initializing free blocks
 
   FreeBlock *freeBlockHead = NULL;
   FreeBlock *freeBlockTail = NULL;
-
-  initializeFreeBlocks(&freeBlockHead, &freeBlockTail);
-
-  // deleteFreeBlockFromHead(&freeBlockHead, &freeBlockTail);
-  // deleteFreeBlockFromHead(&freeBlockHead, &freeBlockTail);
-  // deleteFreeBlockFromHead(&freeBlockHead, &freeBlockTail);
-  // insertFreeBlockAtTail(&freeBlockHead, &freeBlockTail, 1024);
-  // insertFreeBlockAtTail(&freeBlockHead, &freeBlockTail, 1025);
-  // printFreeBlocks(freeBlockHead);
-
-  // printf("\nfree blocks created: \n");
-  // printf("Head: %d\n", freeBlockHead->address);
-  // printf("Tail: %d\n", freeBlockTail->address);
+  if (initializeFreeBlocks(&freeBlockHead, &freeBlockTail) == 0)
+  {
+    printf("Error initializing Memory\n");
+    return 1;
+  }
 
   // Initailize root
   FileNode *root = NULL;
   root = insertFileNodeAtTail(root, NULL, "/", 1);
   FileNode *currentDirectory = root;
+  if (root == NULL)
+  {
+    printf("Error starting VFS\n");
+    return 1;
+  }
+
+  printf("$ ./vfs \n");
+  printf("Compact VFS - ready. Type 'exit' to quit. \n");
 
   // Add to tail
   root = insertFileNodeAtTail(root, NULL, "file 1", 1);
   root = insertFileNodeAtTail(root, NULL, "file 2", 1);
-
-  // printf("\nLength: %d\n", getLengthCircularLinkedList(head));
 
   // Add as child
   root = insertFileNodeAsChild(root, "documents", 1);
@@ -933,18 +920,5 @@ int main()
   {
     handleInput(root, &currentDirectory, virtualDisk, &freeBlockHead, &freeBlockTail);
   }
-
-  // print Linked list
-  // printAllFiles(currentDirectory);
-
-  // print Working Directory
-  // printf("\ncwd: \n");
-  // printWorkingDirectory(root);
-
-  // changeDirectory(&currentDirectory, "documents");
-
-  // Get disk usage
-  // printf("\n");
-  // getDiskUsage(freeBlockHead);
   return 0;
 }
