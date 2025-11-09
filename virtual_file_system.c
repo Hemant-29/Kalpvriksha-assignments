@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define BLOCK_SIZE 512
+#define BLOCK_SIZE 128
 #define TOTAL_BLOCKS 1024
 #define MAX_NAME_SIZE 50
-#define MAX_INPUT 100
-#define MAX_INPUT_TOKENS 5
+#define MAX_INPUT_SIZE 5000
+#define MAX_DIRECTORIES 100
 
 typedef struct FileNode
 {
@@ -29,7 +29,16 @@ typedef struct FreeBlock
 
 } FreeBlock;
 
-// __FreeBlocks functions__
+int freeBlockLength(FreeBlock *head)
+{
+  int length = 0;
+  while (head != NULL)
+  {
+    length++;
+    head = head->next;
+  }
+  return length;
+}
 
 void printFreeBlocks(FreeBlock *head)
 {
@@ -56,7 +65,6 @@ int initializeFreeBlocks(FreeBlock **head, FreeBlock **tail)
   FreeBlock *previousNode = NULL;
   for (int index = 0; index < TOTAL_BLOCKS; index++)
   {
-    // Create new Node
     FreeBlock *newNode = malloc(sizeof *newNode);
     if (newNode == NULL)
     {
@@ -67,7 +75,6 @@ int initializeFreeBlocks(FreeBlock **head, FreeBlock **tail)
     newNode->previous = NULL;
     newNode->address = index;
 
-    // Assign newNode
     if (*head == NULL)
     {
       *head = newNode;
@@ -97,7 +104,6 @@ int deleteFreeBlockFromHead(FreeBlock **head, FreeBlock **tail)
     return 0;
   }
 
-  // Single Node case
   if ((*head)->next == NULL)
   {
     free(*head);
@@ -120,7 +126,6 @@ int insertFreeBlockAtTail(FreeBlock **head, FreeBlock **tail, int address)
     return 0;
   }
 
-  // Create New Node
   FreeBlock *newNode = malloc(sizeof *newNode);
   if (newNode == NULL)
   {
@@ -150,27 +155,6 @@ int insertFreeBlockAtTail(FreeBlock **head, FreeBlock **tail, int address)
   return 1;
 }
 
-// __FileNode functions__
-
-int getLengthCircularLinkedList(FileNode *head)
-{
-  if (head == NULL)
-  {
-    return 0;
-  }
-
-  int length = 0;
-  FileNode *current = head;
-
-  do
-  {
-    length++;
-    current = current->next;
-  } while (current != head);
-
-  return length;
-}
-
 void printCircularLinkedList(FileNode *head)
 {
   if (head == NULL)
@@ -193,27 +177,8 @@ void printCircularLinkedList(FileNode *head)
   } while (current != head);
 }
 
-void printAllFiles(FileNode *head)
-{
-  if (head == NULL)
-  {
-    return;
-  }
-
-  FileNode *current = head;
-
-  while (current->next != head)
-  {
-    printf("%s -> ", current->name);
-    printAllFiles(current->child);
-    current = current->next;
-  }
-  printf("%s\n", current->name);
-}
-
 FileNode *insertFileNodeAtTail(FileNode *head, FileNode *parent, char name[], int isDirectory)
 {
-  // Create a new Node
   FileNode *newNode = malloc(sizeof *newNode);
   if (newNode == NULL)
   {
@@ -226,7 +191,7 @@ FileNode *insertFileNodeAtTail(FileNode *head, FileNode *parent, char name[], in
   newNode->child = NULL;
   newNode->isDirectory = isDirectory;
   newNode->totalBlocks = 0;
-  strcpy(newNode->name, name);
+  strncpy(newNode->name, name, MAX_NAME_SIZE - 1);
 
   if (head == NULL)
   {
@@ -237,7 +202,6 @@ FileNode *insertFileNodeAtTail(FileNode *head, FileNode *parent, char name[], in
 
   FileNode *tail = head->previous;
 
-  // Insert this newNode between tail and head
   tail->next = newNode;
   newNode->previous = tail;
   newNode->next = head;
@@ -276,16 +240,16 @@ int deleteFileNodeAtHead(FileNode *head, FreeBlock **freeBlockHead, FreeBlock **
     return 0;
   }
 
-  // __Single Node case__
+  // Single Node case
   if (head->next == head)
   {
-    // Check for child Nodes
+
     if (head->child != NULL)
     {
       printf("can't delete Directory, delete sub-folder and files first!\n");
       return 0;
     }
-    // Update Parent Node
+
     if (head->parent)
     {
       head->parent->child = NULL;
@@ -309,22 +273,19 @@ int deleteFileNodeAtHead(FileNode *head, FreeBlock **freeBlockHead, FreeBlock **
       }
     }
 
-    // Delete
     free(head);
+    head = NULL;
     return 1;
   }
 
-  // __Other cases__
   else
   {
-    // Check for child Nodes
     if (head->child != NULL)
     {
       printf("can't delete Directory, delete sub-folder and files first!\n");
       return 0;
     }
 
-    // Update Parent
     if (head->parent)
     {
       if (head->parent->child == head)
@@ -333,7 +294,6 @@ int deleteFileNodeAtHead(FileNode *head, FreeBlock **freeBlockHead, FreeBlock **
       }
     }
 
-    // free the blockPointers
     if (head->isDirectory != 1)
     {
       if (freeBlockHead == NULL || freeBlockTail == NULL || virtualDisk == NULL)
@@ -346,12 +306,10 @@ int deleteFileNodeAtHead(FileNode *head, FreeBlock **freeBlockHead, FreeBlock **
         int address = head->blockPointers[index];
         insertFreeBlockAtTail(freeBlockHead, freeBlockTail, address);
 
-        // Free the virtual disk block
         strcpy(virtualDisk[address], "");
       }
     }
 
-    // Deletion
     FileNode *previousNode = head->previous;
     FileNode *nextNode = head->next;
 
@@ -359,12 +317,11 @@ int deleteFileNodeAtHead(FileNode *head, FreeBlock **freeBlockHead, FreeBlock **
     nextNode->previous = previousNode;
 
     free(head);
+    head = NULL;
     return 1;
   }
   return 0;
 }
-
-// __Command Functions__
 
 FileNode *searchFileInDirectory(FileNode *currentDirectory, char *fileName)
 {
@@ -404,12 +361,16 @@ void printWorkingDirectory(FileNode *currentDirectory)
     currentDirectory = currentDirectory->parent;
   }
 
-  char directoryList[1000][MAX_NAME_SIZE];
+  char directoryList[MAX_DIRECTORIES][MAX_NAME_SIZE];
   int index = 0;
 
   while (currentDirectory != NULL)
   {
-    // printf("%s/", currentDirectory->name);
+    if (index >= MAX_DIRECTORIES)
+    {
+      printf("\nError: Directory path too deep to print.\n");
+      break;
+    }
     strcpy(directoryList[index], currentDirectory->name);
 
     currentDirectory = currentDirectory->parent;
@@ -438,6 +399,13 @@ void makeDirectory(FileNode **currentDirectory, char name[MAX_NAME_SIZE])
     return;
   }
 
+  FileNode *searchResult = searchFileInDirectory(*currentDirectory, name);
+  if (searchResult != NULL)
+  {
+    printf("directory '%s' already exists\n", name);
+    return;
+  }
+
   *currentDirectory = insertFileNodeAsChild(*currentDirectory, name, 1);
   printf("Directory '%s' created successfully\n", name);
 }
@@ -453,10 +421,8 @@ void removeDirectory(FileNode **currentDirectory, char searchName[MAX_NAME_SIZE]
     return;
   }
 
-  // if name is of current directory
   if (strcmp((*currentDirectory)->name, searchName) == 0)
   {
-    // if searchName is root directory
     if (strcmp(searchName, "/") == 0)
     {
       printf("Can't delete the root directory\n");
@@ -506,7 +472,6 @@ void deleteFile(FileNode **currentDirectory, char searchName[MAX_NAME_SIZE], Fre
     return;
   }
 
-  // Search for file amongst children
   FileNode *foundFile = searchFileInDirectory(*currentDirectory, searchName);
   if (foundFile == NULL)
   {
@@ -534,6 +499,13 @@ void createFile(FileNode **currentDirectory, char name[MAX_NAME_SIZE])
   {
     return;
   }
+  FileNode *searchResult = searchFileInDirectory(*currentDirectory, name);
+  if (searchResult != NULL)
+  {
+    printf("file '%s' already exists\n", name);
+    return;
+  }
+
   *currentDirectory = insertFileNodeAsChild(*currentDirectory, name, 0);
   printf("file '%s' created successfully\n", name);
 }
@@ -596,38 +568,42 @@ void writeFile(FileNode *file, char *str, FreeBlock **head, FreeBlock **tail, ch
   }
 
   int length = strlen(str);
+  int blocksAllocated = (length + BLOCK_SIZE - 1) / BLOCK_SIZE;
+
   if (length > 0 && length < BLOCK_SIZE * TOTAL_BLOCKS)
   {
-    // Set file size
-    file->fileSize = length;
-    int blocksAllocated = (length / BLOCK_SIZE) + 1;
-
+    if (freeBlockLength(*head) < blocksAllocated)
+    {
+      printf("not enough memory\n");
+      return;
+    }
     if (*head == NULL)
     {
       printf("Error: Memory full\n");
       return;
     }
 
-    // Write the string to the index of these freeBlocks
-    int blockIndex = (*head)->address;
-    strcpy(virtualDisk[blockIndex], str);
+    file->fileSize = length;
+
     for (int index = 0; index < blocksAllocated; index++)
     {
-      // Write freeBlocks to Block Pointers
+      int blockIndex = (*head)->address;
 
-      blockIndex = (*head)->address;
+      // updating the virtual disk
+      strncpy(virtualDisk[blockIndex], str + (index * BLOCK_SIZE), BLOCK_SIZE);
+
+      // Writing freeBlocks to Block Pointers
       int address = file->totalBlocks;
       file->blockPointers[address] = blockIndex;
       file->totalBlocks += 1;
 
-      // Remove free Blocks from list
       deleteFreeBlockFromHead(head, tail);
     }
     printf("Data written successfully (size=%d bytes)\n", length);
   }
   else
   {
-    printf("Enter valid Data\n");
+    printf("Data larger than memory...file not written\n");
     return;
   }
 }
@@ -636,9 +612,11 @@ void readFile(FileNode *file, char virtualDisk[][BLOCK_SIZE])
 {
   for (int index = 0; index < file->totalBlocks; index++)
   {
-    // __implement__ Read this
     int address = file->blockPointers[index];
-    printf("%s ", virtualDisk[address]);
+    char blockData[BLOCK_SIZE] = {0};
+    strncpy(blockData, virtualDisk[address], BLOCK_SIZE);
+
+    printf("%s", blockData);
   }
   printf("\n");
 }
@@ -709,7 +687,6 @@ void freeFileNode(FileNode *root)
 
 void exitProgram(FileNode *root, char virtualDisk[][BLOCK_SIZE], FreeBlock *freeBlockHead, FreeBlock *freeBlockTail)
 {
-  // Freeing all the freeBlocks
   while (freeBlockHead != NULL)
   {
     FreeBlock *nextNode = freeBlockHead->next;
@@ -717,19 +694,16 @@ void exitProgram(FileNode *root, char virtualDisk[][BLOCK_SIZE], FreeBlock *free
     freeBlockHead = nextNode;
   }
 
-  // Free Virtual Disk
-  free(virtualDisk);
-
-  // Free all the fileNodes
   freeFileNode(root);
+
+  printf("Memory released. Exiting program...\n");
 
   exit(1);
 }
 
 void handleInput(FileNode *root, FileNode **currentDirectory, char virtualDisk[][BLOCK_SIZE], FreeBlock **freeBlockHead, FreeBlock **freeBlockTail)
 {
-  // __Taking input__
-  char userInput[MAX_INPUT];
+  char userInput[MAX_INPUT_SIZE];
   printf("%s> ", (*currentDirectory)->name);
   scanf("%[^\n]", userInput);
   getchar();
@@ -738,9 +712,19 @@ void handleInput(FileNode *root, FileNode **currentDirectory, char virtualDisk[]
   char *fileName = strtok(NULL, " ");
   char *data = strtok(NULL, "\"");
 
-  // __Processing input commands__
+  if (command == NULL || strlen(command) == 0)
+  {
+    printf("Invalid command\n");
+    return;
+  }
+
   if (strcmp(command, "mkdir") == 0)
   {
+    if (fileName == NULL || strlen(fileName) == 0)
+    {
+      printf("Invalid directory name!\n");
+      return;
+    }
     if (strcmp(fileName, "") == 0)
     {
       printf("Invalid directory name!\n");
@@ -753,6 +737,11 @@ void handleInput(FileNode *root, FileNode **currentDirectory, char virtualDisk[]
 
   else if (strcmp(command, "cd") == 0)
   {
+    if (fileName == NULL || strlen(fileName) == 0)
+    {
+      printf("Invalid directory name!\n");
+      return;
+    }
     if (strcmp(fileName, "") == 0)
     {
       printf("Invalid directory name!\n");
@@ -765,6 +754,11 @@ void handleInput(FileNode *root, FileNode **currentDirectory, char virtualDisk[]
 
   else if (strcmp(command, "create") == 0)
   {
+    if (fileName == NULL || strlen(fileName) == 0)
+    {
+      printf("Invalid file name!\n");
+      return;
+    }
     if (strcmp(fileName, "") == 0)
     {
       printf("Invalid file name!\n");
@@ -777,6 +771,11 @@ void handleInput(FileNode *root, FileNode **currentDirectory, char virtualDisk[]
 
   else if (strcmp(command, "write") == 0)
   {
+    if (fileName == NULL || strlen(fileName) == 0)
+    {
+      printf("Invalid file name!\n");
+      return;
+    }
     if (strcmp(fileName, "") == 0)
     {
       printf("Invalid file name!\n");
@@ -802,6 +801,11 @@ void handleInput(FileNode *root, FileNode **currentDirectory, char virtualDisk[]
 
   else if (strcmp(command, "read") == 0)
   {
+    if (fileName == NULL || strlen(fileName) == 0)
+    {
+      printf("Invalid file name!\n");
+      return;
+    }
     if (strcmp(fileName, "") == 0)
     {
       printf("Invalid file name!\n");
@@ -822,6 +826,11 @@ void handleInput(FileNode *root, FileNode **currentDirectory, char virtualDisk[]
 
   else if (strcmp(command, "delete") == 0)
   {
+    if (fileName == NULL || strlen(fileName) == 0)
+    {
+      printf("Invalid file name!\n");
+      return;
+    }
     if (strcmp(fileName, "") == 0)
     {
       printf("Invalid file name!\n");
@@ -834,6 +843,11 @@ void handleInput(FileNode *root, FileNode **currentDirectory, char virtualDisk[]
 
   else if (strcmp(command, "rmdir") == 0)
   {
+    if (fileName == NULL || strlen(fileName) == 0)
+    {
+      printf("Invalid directory name!\n");
+      return;
+    }
     if (strcmp(fileName, "") == 0)
     {
       printf("Invalid file name!\n");
@@ -852,7 +866,6 @@ void handleInput(FileNode *root, FileNode **currentDirectory, char virtualDisk[]
 
   else if (strcmp(command, "ls") == 0)
   {
-    // _implement_ not worknig properly
     ListDirectory(*currentDirectory);
   }
 
@@ -881,8 +894,6 @@ int main()
     return 1;
   }
 
-  // Initializing free blocks
-
   FreeBlock *freeBlockHead = NULL;
   FreeBlock *freeBlockTail = NULL;
   if (initializeFreeBlocks(&freeBlockHead, &freeBlockTail) == 0)
@@ -891,7 +902,6 @@ int main()
     return 1;
   }
 
-  // Initailize root
   FileNode *root = NULL;
   root = insertFileNodeAtTail(root, NULL, "/", 1);
   FileNode *currentDirectory = root;
@@ -903,18 +913,6 @@ int main()
 
   printf("$ ./vfs \n");
   printf("Compact VFS - ready. Type 'exit' to quit. \n");
-
-  // Add to tail
-  root = insertFileNodeAtTail(root, NULL, "file 1", 1);
-  root = insertFileNodeAtTail(root, NULL, "file 2", 1);
-
-  // Add as child
-  root = insertFileNodeAsChild(root, "documents", 1);
-  root = insertFileNodeAsChild(root, "images", 1);
-
-  // Add as child
-  root->child = insertFileNodeAsChild(root->child, "document1.txt", 0);
-  root->child->next = insertFileNodeAsChild(root->child->next, "picture.jpg", 0);
 
   while (1)
   {
