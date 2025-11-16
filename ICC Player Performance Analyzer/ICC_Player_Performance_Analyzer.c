@@ -222,8 +222,8 @@ void displayTeamsByStrikeRate(TeamNode **teamsArray, int teamsCount)
   int startingIndex = 0;
   while (startingIndex < teamsCount)
   {
-    float maximum = teamsArray[0]->AverageBattingStrikerate;
-    int maximumIndex = 0;
+    float maximum = teamsArray[startingIndex]->AverageBattingStrikerate;
+    int maximumIndex = startingIndex;
     for (int index = startingIndex; index < teamsCount; index++)
     {
       if (teamsArray[index]->AverageBattingStrikerate > maximum)
@@ -302,7 +302,7 @@ void displayTopKPlayersOfATeam(TeamNode **teamsArray, int teamsCount)
     break;
 
   default:
-    printf("Incorrect role entered!\n");
+    printf("Invalid role entered!\n");
     return;
   }
 
@@ -439,7 +439,7 @@ void printMenu(TeamNode **teamsArray, int teamsCount)
     break;
 
   default:
-    printf("Incorrect choice, Try Again!\n");
+    printf("Invalid choice, Try Again!\n");
     return;
   }
 }
