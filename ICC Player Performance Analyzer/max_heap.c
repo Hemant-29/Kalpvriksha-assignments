@@ -1,18 +1,18 @@
 #include "ICC_header.h"
 
-void swapNodes(heapNode *first, heapNode *second)
+void swapNodes(HeapNode *first, HeapNode *second)
 {
   if (first == NULL || second == NULL)
   {
     printf("Can't swap values");
     return;
   }
-  heapNode temp = *first;
+  HeapNode temp = *first;
   *first = *second;
   *second = temp;
 }
 
-void insertInMaxHeap(heapNode *heap, int *size, int capacity, heapNode node)
+void insertInMaxHeap(HeapNode *heap, int *size, int capacity, HeapNode node)
 {
   if (*size >= capacity)
   {
@@ -26,7 +26,7 @@ void insertInMaxHeap(heapNode *heap, int *size, int capacity, heapNode node)
   heap[currentIndex] = node;
   (*size)++;
 
-  while (parentIndex > 0 && heap[currentIndex].data->PerformanceIndex > heap[parentIndex].data->PerformanceIndex)
+  while (parentIndex > 0 && heap[currentIndex].data->performanceIndex > heap[parentIndex].data->performanceIndex)
   {
     swapNodes(&heap[currentIndex], &heap[parentIndex]);
 
@@ -35,7 +35,7 @@ void insertInMaxHeap(heapNode *heap, int *size, int capacity, heapNode node)
   }
 }
 
-void deleteFromMaxHeap(heapNode *heap, int *size)
+void deleteFromMaxHeap(HeapNode *heap, int *size)
 {
   if (heap == NULL || *size <= 0)
   {
@@ -53,11 +53,11 @@ void deleteFromMaxHeap(heapNode *heap, int *size)
   int largest = current;
   while (current <= *size)
   {
-    if (leftChild <= *size && heap[largest].data->PerformanceIndex < heap[leftChild].data->PerformanceIndex)
+    if (leftChild <= *size && heap[largest].data->performanceIndex < heap[leftChild].data->performanceIndex)
     {
       largest = leftChild;
     }
-    if (rightChild <= *size && heap[largest].data->PerformanceIndex < heap[rightChild].data->PerformanceIndex)
+    if (rightChild <= *size && heap[largest].data->performanceIndex < heap[rightChild].data->performanceIndex)
     {
       largest = rightChild;
     }
@@ -87,7 +87,7 @@ void printMergedSortedPlayers(int *arrayLengths, int totalArrays, PlayerNode **a
   // Allocated totalArrays+1 because heap is 1-indexed in insertInMinHeap.
   int heapCapacity = totalArrays;
   int heapSize = 0;
-  heapNode *heap = calloc(heapCapacity + 1, sizeof(heapNode));
+  HeapNode *heap = calloc(heapCapacity + 1, sizeof(HeapNode));
   if (heap == NULL)
   {
     printf("Memory allocation failed!\n");
@@ -102,7 +102,7 @@ void printMergedSortedPlayers(int *arrayLengths, int totalArrays, PlayerNode **a
       continue;
     }
 
-    heapNode element = {&arrays[arrayIndex][0], arrayIndex, 0};
+    HeapNode element = {&arrays[arrayIndex][0], arrayIndex, 0};
     insertInMaxHeap(heap, &heapSize, heapCapacity, element);
   }
 
@@ -118,7 +118,7 @@ void printMergedSortedPlayers(int *arrayLengths, int totalArrays, PlayerNode **a
 
     if (arrays[arrayIndex] != NULL && valueIndex < arrayLengths[arrayIndex])
     {
-      heapNode element = {&arrays[arrayIndex][valueIndex], arrayIndex, valueIndex};
+      HeapNode element = {&arrays[arrayIndex][valueIndex], arrayIndex, valueIndex};
       insertInMaxHeap(heap, &heapSize, heapCapacity, element);
     }
   }

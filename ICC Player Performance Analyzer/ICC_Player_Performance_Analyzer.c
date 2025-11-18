@@ -6,25 +6,30 @@
 
 void addPlayer(TeamNode **teamsArray, int teamsCount)
 {
-  int TeamID;
-  int PlayerId;
-  char PlayerName[MAX_NAME];
-  int PlayerRole;
-  int TotalRuns;
-  float BattingAverage;
-  float StrikeRate;
-  int Wickets;
-  float EconomyRate;
+  int teamID;
+  int playerID;
+  char playerName[MAX_NAME];
+  int playerRole;
+  int totalRuns;
+  float battingAverage;
+  float strikeRate;
+  int wickets;
+  float economyRate;
 
   printf("Enter team ID: ");
-  scanf("%d", &TeamID);
-  TeamNode *team = searchTeamByID(teamsArray, teamsCount, TeamID);
-  if (team == NULL)
+  scanf("%d", &teamID);
+  if (teamID < 1 || teamID > MAX_TEAM_ID)
   {
-    printf("Team with id %d not found\n", TeamID);
+    printf("Invalid team ID\n");
     return;
   }
-  if (team->TotalPlayers >= MAX_PLAYERS_PER_TEAM)
+  TeamNode *team = searchTeamByID(teamsArray, teamsCount, teamID);
+  if (team == NULL)
+  {
+    printf("Team with id %d not found\n", teamID);
+    return;
+  }
+  if (team->totalPlayers >= MAX_PLAYERS_PER_TEAM)
   {
     printf("Team full, can't add more players!\n");
     return;
@@ -33,8 +38,8 @@ void addPlayer(TeamNode **teamsArray, int teamsCount)
   printf("Enter player details:\n");
 
   printf("Enter player ID: ");
-  scanf("%d", &PlayerId);
-  if (findPlayerByID(teamsArray, teamsCount, PlayerId) == 1)
+  scanf("%d", &playerID);
+  if (findPlayerByID(teamsArray, teamsCount, playerID) == 1)
   {
     printf("This player ID already exists\n");
     return;
@@ -42,130 +47,110 @@ void addPlayer(TeamNode **teamsArray, int teamsCount)
 
   printf("Enter player name: ");
   getchar();
-  if (scanf("%[^\n]", PlayerName) != 1)
+  if (scanf("%[^\n]", playerName) != 1)
   {
     printf("Invalid name\n");
     return;
   }
 
   printf("Enter player role(1-Batsman,2-Bowler,3-All Rounder): ");
-  scanf("%d", &PlayerRole);
-  if (PlayerRole < 1 || PlayerRole > 3)
+  scanf("%d", &playerRole);
+  if (playerRole < 1 || playerRole > 3)
   {
     printf("Invalid Role\n");
     return;
   }
   char roleName[MAX_ROLE_NAME];
-  if (PlayerRole == 1)
+  if (playerRole == 1)
   {
     strncpy(roleName, "Batsman", MAX_ROLE_NAME);
+    roleName[MAX_ROLE_NAME - 1] = '\0';
   }
-  else if (PlayerRole == 2)
+  else if (playerRole == 2)
   {
     strncpy(roleName, "Bowler", MAX_ROLE_NAME);
+    roleName[MAX_ROLE_NAME - 1] = '\0';
   }
-  else if (PlayerRole == 3)
+  else if (playerRole == 3)
   {
     strncpy(roleName, "All-rounder", MAX_ROLE_NAME);
+    roleName[MAX_ROLE_NAME - 1] = '\0';
   }
 
   printf("Enter total runs: ");
-  scanf("%d", &TotalRuns);
-  if (TotalRuns < 0)
+  scanf("%d", &totalRuns);
+  if (totalRuns < 0)
   {
     printf("Invalid runs\n");
     return;
   }
 
   printf("Enter batting average: ");
-  scanf("%f", &BattingAverage);
-  if (BattingAverage < 0)
+  scanf("%f", &battingAverage);
+  if (battingAverage < 0)
   {
     printf("Invalid batting average\n");
     return;
   }
 
   printf("Enter strike rate: ");
-  scanf("%f", &StrikeRate);
-  if (StrikeRate < 0)
+  scanf("%f", &strikeRate);
+  if (strikeRate < 0)
   {
     printf("Invalid strike rate\n");
     return;
   }
 
-  printf("Enter total wikets: ");
-  scanf("%d", &Wickets);
-  if (Wickets < 0)
+  printf("Enter total wickets: ");
+  scanf("%d", &wickets);
+  if (wickets < 0)
   {
-    printf("Wickets less than zero\n");
+    printf("wickets less than zero\n");
     return;
   }
 
   printf("Enter economy rate: ");
-  scanf("%f", &EconomyRate);
-  if (EconomyRate < 0)
+  scanf("%f", &economyRate);
+  if (economyRate < 0)
   {
     printf("Invalid economy rate\n");
     return;
   }
 
   PlayerNode *newPlayer = malloc(sizeof *newPlayer);
+  if (newPlayer == NULL)
+  {
+    printf("Memory allocation failed\n");
+    return;
+  }
   newPlayer->next = NULL;
-  newPlayer->PlayerId = PlayerId;
-  strncpy(newPlayer->Name, PlayerName, MAX_NAME);
-  strncpy(newPlayer->TeamName, team->Name, MAX_NAME);
-  strncpy(newPlayer->Role, roleName, MAX_ROLE_NAME);
-  newPlayer->TotalRuns = TotalRuns;
-  newPlayer->BattingAverage = BattingAverage;
-  newPlayer->StrikeRate = StrikeRate;
-  newPlayer->Wickets = Wickets;
-  newPlayer->EconomyRate = EconomyRate;
-  newPlayer->PerformanceIndex = calculatePerformanceIndex(newPlayer->Role, newPlayer->BattingAverage, newPlayer->StrikeRate, newPlayer->Wickets, newPlayer->EconomyRate);
+  newPlayer->playerID = playerID;
+  strncpy(newPlayer->name, playerName, MAX_NAME);
+  newPlayer->name[MAX_NAME - 1] = '\0';
+  strncpy(newPlayer->teamName, team->name, MAX_NAME);
+  newPlayer->teamName[MAX_NAME - 1] = '\0';
+  strncpy(newPlayer->role, roleName, MAX_ROLE_NAME);
+  newPlayer->role[MAX_ROLE_NAME - 1] = '\0';
+  newPlayer->totalRuns = totalRuns;
+  newPlayer->battingAverage = battingAverage;
+  newPlayer->strikeRate = strikeRate;
+  newPlayer->wickets = wickets;
+  newPlayer->economyRate = economyRate;
+  newPlayer->performanceIndex = calculatePerformanceIndex(newPlayer->role, newPlayer->battingAverage, newPlayer->strikeRate, newPlayer->wickets, newPlayer->economyRate);
 
-  PlayerNode *head = NULL;
-  if (PlayerRole == 1)
-  {
-    head = team->batsmanHead;
-    if (head == NULL)
-    {
-      team->batsmanHead = newPlayer;
-    }
-  }
-  else if (PlayerRole == 2)
-  {
-    head = team->bowlersHead;
-    if (head == NULL)
-    {
-      team->bowlersHead = newPlayer;
-    }
-  }
-  else if (PlayerRole == 3)
-  {
-    head = team->allroundersHead;
-    if (head == NULL)
-    {
-      team->allroundersHead = newPlayer;
-    }
-  }
+  insertPlayerIntoTeam(team, newPlayer);
 
-  PlayerNode *current = head;
-  while (current->next != NULL)
-  {
-    current = current->next;
-  }
-  current->next = newPlayer;
-
-  int previousCount = team->TotalPlayers;
-  team->TotalPlayers += 1;
+  int previousCount = team->totalPlayers;
+  team->totalPlayers += 1;
 
   // Recalculating team's Average Batting Strike rate
-  if (PlayerRole == 1 || PlayerRole == 2)
+  if (playerRole == 1 || playerRole == 3)
   {
-    float totalStrikeRate = team->AverageBattingStrikerate * previousCount + StrikeRate;
-    team->AverageBattingStrikerate = totalStrikeRate / (float)team->TotalPlayers;
+    float totalStrikeRate = team->averageBattingStrikerate * previousCount + strikeRate;
+    team->averageBattingStrikerate = totalStrikeRate / (float)team->totalPlayers;
   }
 
-  printf("Player added successfully to team %s", team->Name);
+  printf("Player added successfully to team %s", team->name);
 }
 
 void displayTeamPlayers(TeamNode *team)
@@ -177,8 +162,7 @@ void displayTeamPlayers(TeamNode *team)
   }
 
   printf("============================================================================================\n");
-  printf("%s %20s %16s %12s %8s %12s %6s %12s\n",
-         "ID", "Name", "Role", "Runs", "SR", "Wkts", "ER", "Perf.Index");
+  printf("%s %20s  %12s  %5s  %8s  %8s  %4s  %3s  %s\n", "ID", "Name", "Role", "Runs", "Avg", "SR", "Wkts", "ER", "Perf.Index");
 
   int playerCount = 0;
   PlayerNode *current = team->batsmanHead;
@@ -205,8 +189,8 @@ void displayTeamPlayers(TeamNode *team)
     playerCount++;
   }
   printf("============================================================================================\n");
-  printf("Total players: %d\n", team->TotalPlayers);
-  printf("Average batting strike rate: %.2f\n", team->AverageBattingStrikerate);
+  printf("Total players: %d\n", team->totalPlayers);
+  printf("Average batting strike rate: %.2f\n", team->averageBattingStrikerate);
   printf("\n");
 }
 
@@ -222,14 +206,14 @@ void displayTeamsByStrikeRate(TeamNode **teamsArray, int teamsCount)
   int startingIndex = 0;
   while (startingIndex < teamsCount)
   {
-    float maximum = teamsArray[startingIndex]->AverageBattingStrikerate;
+    float maximum = teamsArray[startingIndex]->averageBattingStrikerate;
     int maximumIndex = startingIndex;
     for (int index = startingIndex; index < teamsCount; index++)
     {
-      if (teamsArray[index]->AverageBattingStrikerate > maximum)
+      if (teamsArray[index]->averageBattingStrikerate > maximum)
       {
         maximumIndex = index;
-        maximum = teamsArray[index]->AverageBattingStrikerate;
+        maximum = teamsArray[index]->averageBattingStrikerate;
       }
     }
     TeamNode *temp = teamsArray[startingIndex];
@@ -244,7 +228,7 @@ void displayTeamsByStrikeRate(TeamNode **teamsArray, int teamsCount)
   printf("==============================================\n");
   for (int index = 0; index < teamsCount; index++)
   {
-    printf("%3d %13s %8.2f %8d\n", teamsArray[index]->TeamId, teamsArray[index]->Name, teamsArray[index]->AverageBattingStrikerate, teamsArray[index]->TotalPlayers);
+    printf("%3d %13s %8.2f %8d\n", teamsArray[index]->teamID, teamsArray[index]->name, teamsArray[index]->averageBattingStrikerate, teamsArray[index]->totalPlayers);
   }
   printf("==============================================\n");
   printf("\n");
@@ -258,9 +242,10 @@ void displayTopKPlayersOfATeam(TeamNode **teamsArray, int teamsCount)
 
   printf("Enter the team ID: ");
   scanf("%d", &teamID);
-  if (teamID < 0)
+  if (teamID < 1)
   {
     printf("Invalid team ID\n");
+    return;
   }
 
   printf("EnterRole(1-Batsman,2-Bowler,3-All-rounder): ");
@@ -306,10 +291,9 @@ void displayTopKPlayersOfATeam(TeamNode **teamsArray, int teamsCount)
     return;
   }
 
-  printf("Top %d players of Team %s:\n", playerCount, team->Name);
+  printf("Top %d players of Team %s:\n", playerCount, team->name);
   printf("============================================================================================\n");
-  printf("%s %20s %16s %12s %8s %12s %6s %12s\n",
-         "ID", "Name", "Role", "Runs", "SR", "Wkts", "ER", "Perf.Index");
+  printf("%s %20s  %12s  %5s  %8s  %8s  %4s  %3s  %s\n", "ID", "Name", "Role", "Runs", "Avg", "SR", "Wkts", "ER", "Perf.Index");
 
   printf("============================================================================================\n");
   for (int index = 0; index < playerCount; index++)
@@ -324,7 +308,7 @@ void displayTopKPlayersOfATeam(TeamNode **teamsArray, int teamsCount)
   printf("\n");
 }
 
-void DisplayAllPlayersOfRole(TeamNode **teamsArray, int teamsCount)
+void displayAllPlayersOfRole(TeamNode **teamsArray, int teamsCount)
 {
   int role;
   printf("EnterRole(1-Batsman,2-Bowler,3-All-rounder): ");
@@ -337,12 +321,21 @@ void DisplayAllPlayersOfRole(TeamNode **teamsArray, int teamsCount)
   }
 
   printf("============================================================================================\n");
-  printf("%s %20s %16s %12s %8s %12s %6s %12s\n",
-         "ID", "Name", "Role", "Runs", "SR", "Wkts", "ER", "Perf.Index");
+  printf("%s %20s  %12s  %5s  %8s  %8s  %4s  %3s  %s\n", "ID", "Name", "Role", "Runs", "Avg", "SR", "Wkts", "ER", "Perf.Index");
 
   int *arrayLengths = calloc(teamsCount, sizeof(int));
+  if (arrayLengths == NULL)
+  {
+    printf("Memory allocation failed\n");
+    return;
+  }
 
   PlayerNode **playerArrays = calloc(teamsCount, sizeof(PlayerNode *));
+  if (playerArrays == NULL)
+  {
+    printf("Memory allocation failed\n");
+    return;
+  }
   for (int teamIndex = 0; teamIndex < teamsCount; teamIndex++)
   {
     TeamNode *currentTeam = teamsArray[teamIndex];
@@ -369,6 +362,11 @@ void DisplayAllPlayersOfRole(TeamNode **teamsArray, int teamsCount)
     }
 
     playerArrays[teamIndex] = calloc(totalPlayers, sizeof(PlayerNode));
+    if (playerArrays[teamIndex] == NULL)
+    {
+      printf("Memory allocation failed\n");
+      return;
+    }
 
     // Copy the linked list elements into the player's Arrays
     for (int playerIndex = 0; playerIndex < totalPlayers; playerIndex++)
@@ -392,6 +390,15 @@ void DisplayAllPlayersOfRole(TeamNode **teamsArray, int teamsCount)
   free(arrayLengths);
 
   printf("\n");
+}
+
+void freeMemoryAndExit(TeamNode **teamsArray, int teamsCount)
+{
+  for (int teamIndex = 0; teamIndex < teamCount; teamIndex++)
+  {
+    free(teamsArray[teamIndex]);
+  }
+  free(teamsArray);
 }
 
 void printMenu(TeamNode **teamsArray, int teamsCount)
@@ -432,10 +439,10 @@ void printMenu(TeamNode **teamsArray, int teamsCount)
     displayTopKPlayersOfATeam(teamsArray, teamsCount);
     break;
   case 5:
-    DisplayAllPlayersOfRole(teamsArray, teamsCount);
+    displayAllPlayersOfRole(teamsArray, teamsCount);
     break;
   case 6:
-    exit(0);
+    freeMemoryAndExit(teamsArray, teamCount);
     break;
 
   default:
@@ -457,5 +464,11 @@ int main()
   {
     printMenu(teamsArray, teamCount);
   }
+
+  for (int teamIndex = 0; teamIndex < teamCount; teamIndex++)
+  {
+    free(teamsArray[teamIndex]);
+  }
+  free(teamsArray);
   return 0;
 }

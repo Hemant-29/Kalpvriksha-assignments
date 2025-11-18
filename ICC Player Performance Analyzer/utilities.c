@@ -1,6 +1,5 @@
 #include "ICC_header.h"
 
-
 int binarySearchTeamsName(TeamNode **teamsArray, int teamsCount, char *teamName)
 {
   int low = 0;
@@ -10,15 +9,15 @@ int binarySearchTeamsName(TeamNode **teamsArray, int teamsCount, char *teamName)
   {
     int mid = (high - low) / 2 + low;
 
-    if (strcmp(teamsArray[mid]->Name, teamName) == 0)
+    if (strcmp(teamsArray[mid]->name, teamName) == 0)
     {
       return mid;
     }
-    else if (strcmp(teamsArray[mid]->Name, teamName) < 0)
+    else if (strcmp(teamsArray[mid]->name, teamName) < 0)
     {
       low = mid + 1;
     }
-    else if (strcmp(teamsArray[mid]->Name, teamName) > 0)
+    else if (strcmp(teamsArray[mid]->name, teamName) > 0)
     {
       high = mid - 1;
     }
@@ -55,17 +54,19 @@ TeamNode *searchTeamByID(TeamNode **teamsArray, int totalTeams, int teamID)
   {
     return NULL;
   }
-  if (teamID < 0)
+  if (teamID < 1)
   {
+    printf("Invalid team ID\n");
     return NULL;
   }
   TeamNode *team = NULL;
 
   for (int index = 0; index < totalTeams; index++)
   {
-    if (teamsArray[index]->TeamId == teamID)
+    if (teamsArray[index]->teamID == teamID)
     {
       team = teamsArray[index];
+      return team;
     }
   }
 
@@ -74,7 +75,7 @@ TeamNode *searchTeamByID(TeamNode **teamsArray, int totalTeams, int teamID)
 
 void displayPlayer(PlayerNode *player)
 {
-  printf("%d %20s \t%12s \t%d \t%8.2f \t%d \t%3.2f \t%.2f\n", player->PlayerId, player->Name, player->Role, player->TotalRuns, player->StrikeRate, player->Wickets, player->EconomyRate, player->PerformanceIndex);
+  printf("%4d %20s  %12s  %5d  %8.2f  %8.2f  %4d  %3.2f  %.2f\n", player->playerID, player->name, player->role, player->totalRuns, player->battingAverage, player->strikeRate, player->wickets, player->economyRate, player->performanceIndex);
 }
 
 int getLinkedListLength(PlayerNode *head)
@@ -101,7 +102,7 @@ int findPlayerByID(TeamNode **teamsArray, int teamsCount, int id)
     PlayerNode *head = team->batsmanHead;
     while (head != NULL)
     {
-      if (head->PlayerId == id)
+      if (head->playerID == id)
       {
         return 1;
       }
@@ -110,7 +111,7 @@ int findPlayerByID(TeamNode **teamsArray, int teamsCount, int id)
     head = team->bowlersHead;
     while (head != NULL)
     {
-      if (head->PlayerId == id)
+      if (head->playerID == id)
       {
         return 1;
       }
@@ -119,7 +120,7 @@ int findPlayerByID(TeamNode **teamsArray, int teamsCount, int id)
     head = team->allroundersHead;
     while (head != NULL)
     {
-      if (head->PlayerId == id)
+      if (head->playerID == id)
       {
         return 1;
       }

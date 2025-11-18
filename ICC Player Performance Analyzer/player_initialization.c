@@ -2,16 +2,22 @@
 
 PlayerNode *insertPlayerByPerformanceIndex(PlayerNode *head, PlayerNode *newPlayer)
 {
+  if (newPlayer == NULL)
+  {
+    return head;
+  }
+
   if (head == NULL)
   {
-    return newPlayer;
+    head = newPlayer;
+    return head;
   }
 
   PlayerNode *previous = NULL;
   PlayerNode *current = head;
   while (current != NULL)
   {
-    if (newPlayer->PerformanceIndex > current->PerformanceIndex)
+    if (newPlayer->performanceIndex > current->performanceIndex)
     {
       if (previous == NULL)
       {
@@ -47,21 +53,27 @@ void insertPlayerIntoTeam(TeamNode *team, PlayerNode *player)
     return;
   }
 
-  team->TotalPlayers += 1;
-
-  if (strcmp(player->Role, "Batsman") == 0)
+  if (strcmp(player->role, "Batsman") == 0)
   {
     team->batsmanHead = insertPlayerByPerformanceIndex(team->batsmanHead, player);
+    team->totalPlayers += 1;
     return;
   }
-  else if (strcmp(player->Role, "Bowler") == 0)
+  else if (strcmp(player->role, "Bowler") == 0)
   {
     team->bowlersHead = insertPlayerByPerformanceIndex(team->bowlersHead, player);
+    team->totalPlayers += 1;
     return;
   }
-  else if (strcmp(player->Role, "All-rounder") == 0)
+  else if (strcmp(player->role, "All-rounder") == 0)
   {
     team->allroundersHead = insertPlayerByPerformanceIndex(team->allroundersHead, player);
+    team->totalPlayers += 1;
+    return;
+  }
+  else
+  {
+    printf("player role Invalid\n");
     return;
   }
 }
@@ -69,15 +81,25 @@ void insertPlayerIntoTeam(TeamNode *team, PlayerNode *player)
 TeamNode **initializeTeams(const char **teamNames, int teamsCount)
 {
   TeamNode **allTeams = calloc(teamsCount, sizeof(TeamNode *));
+  if (allTeams == NULL)
+  {
+    printf("Memory allocation failed\n");
+    return NULL;
+  }
 
   for (int teamID = 0; teamID < teamsCount; teamID++)
   {
 
     TeamNode *newTeam = malloc(sizeof *newTeam);
-    newTeam->TeamId = teamID;
-    strncpy(newTeam->Name, teamNames[teamID], MAX_NAME);
-    newTeam->TotalPlayers = 0;
-    newTeam->AverageBattingStrikerate = 0;
+    if (newTeam == NULL)
+    {
+      printf("Memory allocation failed\n");
+      return NULL;
+    }
+    newTeam->teamID = teamID + 1; // for 1 based indexing
+    strncpy(newTeam->name, teamNames[teamID], MAX_NAME);
+    newTeam->totalPlayers = 0;
+    newTeam->averageBattingStrikerate = 0;
     newTeam->batsmanHead = NULL;
     newTeam->bowlersHead = NULL;
     newTeam->allroundersHead = NULL;
@@ -93,19 +115,24 @@ void initializePlayers(const Player *playerDetails, int playersCount, TeamNode *
   for (int index = 0; index < playersCount; index++)
   {
     PlayerNode *newPlayer = malloc(sizeof *newPlayer);
-    newPlayer->PlayerId = playerDetails[index].id;
-    strncpy(newPlayer->Name, playerDetails[index].name, MAX_NAME);
-    strncpy(newPlayer->TeamName, playerDetails[index].team, MAX_NAME);
-    strncpy(newPlayer->Role, playerDetails[index].role, MAX_ROLE_NAME);
-    newPlayer->TotalRuns = playerDetails[index].totalRuns;
-    newPlayer->BattingAverage = playerDetails[index].battingAverage;
-    newPlayer->StrikeRate = playerDetails[index].strikeRate;
-    newPlayer->Wickets = playerDetails[index].wickets;
-    newPlayer->EconomyRate = playerDetails[index].economyRate;
-    newPlayer->PerformanceIndex = calculatePerformanceIndex(newPlayer->Role, newPlayer->BattingAverage, newPlayer->StrikeRate, newPlayer->Wickets, newPlayer->EconomyRate);
+    if (newPlayer == NULL)
+    {
+      printf("Memory allocation failed\n");
+      return;
+    }
+    newPlayer->playerID = playerDetails[index].id;
+    strncpy(newPlayer->name, playerDetails[index].name, MAX_NAME);
+    strncpy(newPlayer->teamName, playerDetails[index].team, MAX_NAME);
+    strncpy(newPlayer->role, playerDetails[index].role, MAX_ROLE_NAME);
+    newPlayer->totalRuns = playerDetails[index].totalRuns;
+    newPlayer->battingAverage = playerDetails[index].battingAverage;
+    newPlayer->strikeRate = playerDetails[index].strikeRate;
+    newPlayer->wickets = playerDetails[index].wickets;
+    newPlayer->economyRate = playerDetails[index].economyRate;
+    newPlayer->performanceIndex = calculatePerformanceIndex(newPlayer->role, newPlayer->battingAverage, newPlayer->strikeRate, newPlayer->wickets, newPlayer->economyRate);
     newPlayer->next = NULL;
 
-    int teamIndex = binarySearchTeamsName(teamsArray, teamsCount, newPlayer->TeamName);
+    int teamIndex = binarySearchTeamsName(teamsArray, teamsCount, newPlayer->teamName);
 
     if (teamIndex >= 0)
     {
@@ -125,7 +152,7 @@ void setTeamsStrikeRate(TeamNode **teamsArray, int teamsCount)
     PlayerNode *playersHead = currentTeam->batsmanHead;
     while (playersHead != NULL)
     {
-      totalStrikeRate += playersHead->StrikeRate;
+      totalStrikeRate += playersHead->strikeRate;
       playersHead = playersHead->next;
       allRounderBatsmenCount++;
     }
@@ -133,10 +160,18 @@ void setTeamsStrikeRate(TeamNode **teamsArray, int teamsCount)
     playersHead = currentTeam->allroundersHead;
     while (playersHead != NULL)
     {
-      totalStrikeRate += playersHead->StrikeRate;
+      totalStrikeRate += playersHead->strikeRate;
       playersHead = playersHead->next;
       allRounderBatsmenCount++;
     }
-    currentTeam->AverageBattingStrikerate = totalStrikeRate / allRounderBatsmenCount;
+    if (allRounderBatsmenCount > 0)
+    {
+      currentTeam->averageBattingStrikerate = totalStrikeRate / allRounderBatsmenCount;
+    }
+    else
+    {
+      currentTeam->averageBattingStrikerate = 0.0f;
+    }
+    // currentTeam->averageBattingStrikerate = totalStrikeRate / allRounderBatsmenCount;
   }
 }
