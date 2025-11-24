@@ -40,6 +40,12 @@ void insertToHashMap(LRUCache *cache, int key, QueueNode *value)
   int index = hashValue(cache, key);
 
   HashNode *newNode = malloc(sizeof(HashNode));
+  if (newNode == NULL)
+  {
+    printf("Memory allocation failed\n");
+    return;
+  }
+
   newNode->key = key;
   newNode->queueAddress = value;
   newNode->next = cache->hashMap[index]; // Insert at head of bucket
@@ -55,7 +61,9 @@ QueueNode *findInHashMap(LRUCache *cache, int key)
   while (current != NULL)
   {
     if (current->key == key)
+    {
       return current->queueAddress;
+    }
     current = current->next;
   }
   return NULL;
@@ -130,7 +138,9 @@ void moveToHead(LRUCache *cache, QueueNode *node)
 void deleteFromTail(LRUCache *cache)
 {
   if (cache->rear == NULL)
+  {
     return;
+  }
 
   QueueNode *temp = cache->rear;
 
@@ -171,6 +181,12 @@ void put(LRUCache *cache, int key, char *value)
   }
 
   QueueNode *newNode = malloc(sizeof(QueueNode));
+  if (newNode == NULL)
+  {
+    printf("Memory allocation failed\n");
+    return;
+  }
+
   newNode->key = key;
   strncpy(newNode->value, value, STRING_LENGTH - 1);
   newNode->value[STRING_LENGTH - 1] = '\0';
@@ -205,18 +221,6 @@ char *get(LRUCache *cache, int key)
   return NULL;
 }
 
-void printQueue(LRUCache *cache)
-{
-  QueueNode *head = cache->front;
-  printf("Queue Status: ");
-  while (head != NULL)
-  {
-    printf("[%d: %s] -> ", head->key, head->value);
-    head = head->next;
-  }
-  printf("NULL\n");
-}
-
 void createCache(int capacity)
 {
   if (gCache != NULL)
@@ -226,6 +230,11 @@ void createCache(int capacity)
   }
 
   gCache = malloc(sizeof(LRUCache));
+  if (gCache == NULL)
+  {
+    printf("Memory allocation failed\n");
+    return;
+  }
 
   gCache->capacity = capacity;
   gCache->currentSize = 0;
@@ -233,6 +242,11 @@ void createCache(int capacity)
   gCache->rear = NULL;
 
   gCache->hashMap = malloc(sizeof(HashNode *) * capacity);
+  if (gCache->hashMap == NULL)
+  {
+    printf("Memory allocation failed\n");
+    return;
+  }
 
   for (int i = 0; i < capacity; i++)
   {
