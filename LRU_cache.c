@@ -4,13 +4,14 @@
 
 #define STRING_LENGTH 30
 #define CACHE_CAPACITY 1000
+struct LRUCache *gCache = NULL;
 
 typedef struct QueueNode
 {
   int key;
   char value[STRING_LENGTH];
   struct QueueNode *next;
-  struct QueueNode *prev;
+  struct QueueNode *previous;
 } QueueNode;
 
 typedef struct HashNode
@@ -20,207 +21,312 @@ typedef struct HashNode
   struct HashNode *next;
 } HashNode;
 
-int hashValue(int key, int size)
+typedef struct LRUCache
 {
-  return key % size;
+  int capacity;
+  int currentSize;
+  QueueNode *front;
+  QueueNode *rear;
+  HashNode **hashMap;
+} LRUCache;
+
+int hashValue(LRUCache *cache, int key)
+{
+  return key % cache->capacity;
 }
 
-void insertToHashMap(HashNode **hashMap, int key, QueueNode *value)
+void insertToHashMap(LRUCache *cache, int key, QueueNode *value)
 {
-  int hashIndex = hashValue(key, CACHE_CAPACITY);
-
-  HashNode *currentNode = hashMap[hashIndex];
-  while (currentNode != NULL)
-  {
-    if (currentNode->key == key)
-    {
-      // key found, update its value in the HashMap
-      currentNode->queueAddress = value;
-      return;
-    }
-    currentNode = currentNode->next;
-  }
-
-  // Insert at the head, if value not found in the hashMap
-  HashNode *head = hashMap[hashIndex];
+  int index = hashValue(cache, key);
 
   HashNode *newNode = malloc(sizeof(HashNode));
   newNode->key = key;
   newNode->queueAddress = value;
-  newNode->next = NULL;
+  newNode->next = cache->hashMap[index]; // Insert at head of bucket
 
-  if (head == NULL)
-  {
-    hashMap[hashIndex] = newNode;
-  }
-  else
-  {
-    newNode->next = head;
-    hashMap[hashIndex] = newNode;
-  }
+  cache->hashMap[index] = newNode;
 }
 
-QueueNode *findInHashMap(HashNode **hashMap, int key)
+QueueNode *findInHashMap(LRUCache *cache, int key)
 {
-  int hashIndex = hashValue(key, CACHE_CAPACITY);
+  int index = hashValue(cache, key);
+  HashNode *current = cache->hashMap[index];
 
-  HashNode *currentNode = hashMap[hashIndex];
-  while (currentNode != NULL)
+  while (current != NULL)
   {
-    if (currentNode->key == key)
-    {
-      printf("Found key %d in hashMap\n", key);
-      return currentNode->queueAddress;
-    }
-    currentNode = currentNode->next;
+    if (current->key == key)
+      return current->queueAddress;
+    current = current->next;
   }
-  printf("Key %d NOT found in hashMap\n", key);
   return NULL;
 }
 
-void deleteFromHashMap(HashNode **hashMap, int key)
+void deleteFromHashMap(LRUCache *cache, int key)
 {
-  int hashIndex = hashValue(key, CACHE_CAPACITY);
+  int index = hashValue(cache, key);
+  HashNode *current = cache->hashMap[index];
+  HashNode *previous = NULL;
 
-  HashNode *currentNode = hashMap[hashIndex];
-  HashNode *previousNode = NULL;
-
-  while (currentNode != NULL)
+  while (current != NULL)
   {
-    if (currentNode->key == key)
+    if (current->key == key)
     {
-      printf("Deleted key %d from hashMap\n", key);
-      if (previousNode == NULL)
+      if (previous == NULL)
       {
-        hashMap[hashIndex] = currentNode->next;
-        free(currentNode);
+        cache->hashMap[index] = current->next;
       }
       else
       {
-        previousNode->next = currentNode->next;
-        free(currentNode);
+        previous->next = current->next;
       }
-      break;
+      free(current);
+      return;
     }
-    previousNode = currentNode;
-    currentNode = currentNode->next;
+    previous = current;
+    current = current->next;
   }
 }
 
-int getLinkedListSize(QueueNode *head)
+void moveToHead(LRUCache *cache, QueueNode *node)
 {
-  int size = 0;
+  QueueNode *head = cache->front;
+
+  if (head == node)
+  {
+    return;
+  }
+
+  // Detach from current position
+  if (node->previous)
+  {
+    node->previous->next = node->next;
+  }
+  if (node->next)
+  {
+    node->next->previous = node->previous;
+  }
+
+  // Update Rear if we moved the tail
+  if (cache->rear == node)
+  {
+    cache->rear = node->previous;
+    if (cache->rear)
+    {
+      cache->rear->next = NULL;
+    }
+  }
+
+  // Attach to Front
+  node->next = head;
+  node->previous = NULL;
+
+  if (cache->front)
+  {
+    cache->front->previous = node;
+  }
+  cache->front = node;
+}
+
+void deleteFromTail(LRUCache *cache)
+{
+  if (cache->rear == NULL)
+    return;
+
+  QueueNode *temp = cache->rear;
+
+  if (cache->front == cache->rear)
+  {
+    cache->front = NULL;
+    cache->rear = NULL;
+  }
+  else
+  {
+    cache->rear = cache->rear->previous;
+    cache->rear->next = NULL;
+  }
+
+  free(temp);
+  cache->currentSize--;
+}
+
+void put(LRUCache *cache, int key, char *value)
+{
+  // Check if Key exists
+  QueueNode *existingNode = findInHashMap(cache, key);
+  if (existingNode != NULL)
+  {
+    strncpy(existingNode->value, value, STRING_LENGTH - 1);
+    existingNode->value[STRING_LENGTH - 1] = '\0';
+
+    moveToHead(cache, existingNode);
+    return;
+  }
+
+  // If Cache is Full, remove Tail (LRU)
+  if (cache->currentSize >= cache->capacity)
+  {
+    int tailKey = cache->rear->key;
+    deleteFromHashMap(cache, tailKey);
+    deleteFromTail(cache);
+  }
+
+  QueueNode *newNode = malloc(sizeof(QueueNode));
+  newNode->key = key;
+  strncpy(newNode->value, value, STRING_LENGTH - 1);
+  newNode->value[STRING_LENGTH - 1] = '\0';
+  newNode->previous = NULL;
+  newNode->next = cache->front;
+
+  if (cache->front != NULL)
+  {
+    cache->front->previous = newNode;
+  }
+  cache->front = newNode;
+
+  if (cache->rear == NULL)
+  {
+    cache->rear = newNode;
+  }
+
+  insertToHashMap(cache, key, newNode);
+  cache->currentSize++;
+}
+
+char *get(LRUCache *cache, int key)
+{
+  QueueNode *node = findInHashMap(cache, key);
+
+  if (node != NULL)
+  {
+    // Accessed. Move to MRU (Head)
+    moveToHead(cache, node);
+    return node->value;
+  }
+  return NULL;
+}
+
+void printQueue(LRUCache *cache)
+{
+  QueueNode *head = cache->front;
+  printf("Queue Status: ");
   while (head != NULL)
   {
-    size++;
+    printf("[%d: %s] -> ", head->key, head->value);
     head = head->next;
   }
-  return size;
+  printf("NULL\n");
 }
 
-void deleteFromQueue(QueueNode **head, QueueNode **tail, int *size)
+void createCache(int capacity)
 {
-  if (*tail == NULL)
+  if (gCache != NULL)
   {
+    printf("Cache already initialized\n");
     return;
   }
 
-  if (*head == *tail)
-  {
-    free(*head);
-    *head = NULL;
-    *tail = NULL;
-    --*size;
-    return;
-  }
+  gCache = malloc(sizeof(LRUCache));
 
-  QueueNode *previousTail = *tail;
-  *tail = (*tail)->prev;
-  (*tail)->next = NULL;
-  free(previousTail);
-  --*size;
+  gCache->capacity = capacity;
+  gCache->currentSize = 0;
+  gCache->front = NULL;
+  gCache->rear = NULL;
+
+  gCache->hashMap = malloc(sizeof(HashNode *) * capacity);
+
+  for (int i = 0; i < capacity; i++)
+  {
+    gCache->hashMap[i] = NULL;
+  }
 }
 
-void addToQueue(QueueNode **head, QueueNode **tail, int key, char *value, HashNode **hashMap, int *size)
+void processInput()
 {
-  // if key is present in the Cache Queue
-  QueueNode *address = findInHashMap(hashMap, key);
-  if (address != NULL)
+  printf("> ");
+
+  char input[STRING_LENGTH];
+  scanf("%[^\n]", input);
+  getchar();
+
+  char *command = strtok(input, " ");
+  char *parameter1 = strtok(NULL, " ");
+  char *parameter2 = strtok(NULL, " ");
+
+  if (strcmp(command, "exit") == 0)
   {
-    strncpy(address->value, value, STRING_LENGTH - 1);
-    address->value[STRING_LENGTH - 1] = '\0';
-    return;
+    exit(0);
   }
-
-  // If queue is Empty
-  if (*head == NULL)
+  else if (strcmp(command, "get") == 0)
   {
-    QueueNode *newNode = malloc(1 * sizeof(QueueNode));
-    newNode->key = key;
-    strncpy(newNode->value, value, STRING_LENGTH - 1);
-    newNode->value[STRING_LENGTH - 1] = '\0';
-    newNode->prev = NULL;
-    newNode->next = NULL;
+    if (parameter1 == NULL)
+    {
+      printf("Invalid parameters\n");
+      return;
+    }
+    int addressValue = atoi(parameter1);
 
-    *head = newNode;
-    *tail = newNode;
-
-    insertToHashMap(hashMap, key, *head);
-    ++*size;
-    return;
+    char *output = get(gCache, addressValue);
+    if (output != NULL)
+    {
+      printf("%s\n", output);
+    }
+    else
+    {
+      printf("NULL\n");
+    }
   }
-
-  // Capacity check for the queue
-  if (*size >= CACHE_CAPACITY)
+  else if (strcmp(command, "put") == 0)
   {
-    int tailKey = (*tail)->key;
-    deleteFromHashMap(hashMap, tailKey);
+    if (parameter1 == NULL)
+    {
+      printf("Invalid parameters\n");
+      return;
+    }
+    if (parameter2 == NULL)
+    {
+      printf("Invalid parameters\n");
+      return;
+    }
 
-    deleteFromQueue(head, tail, size);
+    int addressValue = atoi(parameter1);
+    if (addressValue < 0 || addressValue >= CACHE_CAPACITY)
+    {
+      printf("Invalid cache address\n");
+      return;
+    }
+    char *cacheValue = parameter2;
+
+    put(gCache, addressValue, cacheValue);
+    printf("Added at %d successfully\n", addressValue);
   }
-
-  QueueNode *newHead = malloc(1 * sizeof(QueueNode));
-  newHead->next = NULL;
-  newHead->prev = NULL;
-  newHead->key = key;
-  strncpy(newHead->value, value, STRING_LENGTH - 1);
-  newHead->value[STRING_LENGTH - 1] = '\0';
-
-  newHead->next = *head;
-  (*head)->prev = newHead;
-
-  *head = newHead;
-
-  // Then update the key-value in the hashmap
-  insertToHashMap(hashMap, key, *head);
-
-  ++*size;
-}
-
-void printQueue(QueueNode *head)
-{
-  while (head != NULL)
+  else if (strcmp(command, "createCache") == 0)
   {
-    printf("%d: %s -> ", head->key, head->value);
-    head = head->next;
+    if (parameter1 == NULL)
+    {
+      printf("Invalid parameters\n");
+      return;
+    }
+    int value = atoi(parameter1);
+    if (value >= CACHE_CAPACITY)
+    {
+      printf("Value too big\n");
+      return;
+    }
+    createCache(value);
   }
-  printf("\n");
+  else
+  {
+    printf("%s is an Invalid command\n", command);
+  }
 }
 
 int main()
 {
-  // Initialize LRU Cache
-  QueueNode *front = NULL;
-  QueueNode *rear = NULL;
-  int size = 0;
-  HashNode **hashMap = malloc(CACHE_CAPACITY * sizeof(HashNode *));
-  for (int item = 0; item < CACHE_CAPACITY; item++)
+
+  while (1)
   {
-    hashMap[item] = NULL;
+    processInput();
   }
 
-  addToQueue(&front, &rear, 102, "abcd", hashMap, &size);
-  addToQueue(&front, &rear, 1102, "dln", hashMap, &size);
-  printQueue(front);
   return 0;
 }
