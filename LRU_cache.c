@@ -4,7 +4,6 @@
 
 #define STRING_LENGTH 30
 #define CACHE_CAPACITY 1000
-struct LRUCache *gCache = NULL;
 
 typedef struct QueueNode
 {
@@ -39,6 +38,18 @@ void insertToHashMap(LRUCache *cache, int key, QueueNode *value)
 {
   int index = hashValue(cache, key);
 
+  // Checking for duplicate key
+  HashNode *hashHead = cache->hashMap[index];
+  while (hashHead != NULL)
+  {
+    if (hashHead->key == key)
+    {
+      printf("key %d already present in hash\n", key);
+      return;
+    }
+    hashHead = hashHead->next;
+  }
+
   HashNode *newNode = malloc(sizeof(HashNode));
   if (newNode == NULL)
   {
@@ -48,8 +59,9 @@ void insertToHashMap(LRUCache *cache, int key, QueueNode *value)
 
   newNode->key = key;
   newNode->queueAddress = value;
-  newNode->next = cache->hashMap[index]; // Insert at head of bucket
 
+  //  Insert at head of bucket
+  newNode->next = cache->hashMap[index];
   cache->hashMap[index] = newNode;
 }
 
@@ -161,6 +173,13 @@ void deleteFromTail(LRUCache *cache)
 
 void put(LRUCache *cache, int key, char *value)
 {
+  // Check if cache exits
+  if (cache == NULL)
+  {
+    printf("Cache isn't Initialized\n");
+    return;
+  }
+
   // Check if Key exists
   QueueNode *existingNode = findInHashMap(cache, key);
   if (existingNode != NULL)
@@ -206,10 +225,18 @@ void put(LRUCache *cache, int key, char *value)
 
   insertToHashMap(cache, key, newNode);
   cache->currentSize++;
+
+  printf("Added at %d successfully\n", key);
 }
 
 char *get(LRUCache *cache, int key)
 {
+  if (cache == NULL)
+  {
+    printf("Cache isn't Initialized\n");
+    return NULL;
+  }
+
   QueueNode *node = findInHashMap(cache, key);
 
   if (node != NULL)
@@ -221,28 +248,28 @@ char *get(LRUCache *cache, int key)
   return NULL;
 }
 
-void createCache(int capacity)
+void createCache(LRUCache **cache, int capacity)
 {
-  if (gCache != NULL)
+  if ((*cache) != NULL)
   {
     printf("Cache already initialized\n");
     return;
   }
 
-  gCache = malloc(sizeof(LRUCache));
-  if (gCache == NULL)
+  (*cache) = malloc(sizeof(LRUCache));
+  if ((*cache) == NULL)
   {
     printf("Memory allocation failed\n");
     return;
   }
 
-  gCache->capacity = capacity;
-  gCache->currentSize = 0;
-  gCache->front = NULL;
-  gCache->rear = NULL;
+  (*cache)->capacity = capacity;
+  (*cache)->currentSize = 0;
+  (*cache)->front = NULL;
+  (*cache)->rear = NULL;
 
-  gCache->hashMap = malloc(sizeof(HashNode *) * capacity);
-  if (gCache->hashMap == NULL)
+  (*cache)->hashMap = malloc(sizeof(HashNode *) * capacity);
+  if ((*cache)->hashMap == NULL)
   {
     printf("Memory allocation failed\n");
     return;
@@ -250,11 +277,44 @@ void createCache(int capacity)
 
   for (int i = 0; i < capacity; i++)
   {
-    gCache->hashMap[i] = NULL;
+    (*cache)->hashMap[i] = NULL;
   }
 }
 
-void processInput()
+void freeMemory(LRUCache *cache)
+{
+  if (cache == NULL)
+    return;
+
+  // Free all QueueNodes
+  QueueNode *currentQ = cache->front;
+  while (currentQ != NULL)
+  {
+    QueueNode *temp = currentQ;
+    currentQ = currentQ->next;
+    free(temp);
+  }
+
+  // free all HashNodes
+  for (int i = 0; i < cache->capacity; i++)
+  {
+    HashNode *currentH = cache->hashMap[i];
+    while (currentH != NULL)
+    {
+      HashNode *temp = currentH;
+      currentH = currentH->next;
+      free(temp);
+    }
+  }
+
+  free(cache->hashMap);
+
+  free(cache);
+
+  printf("Memory successfully freed.\n");
+}
+
+void processInput(LRUCache **cache)
 {
   printf("> ");
 
@@ -268,6 +328,7 @@ void processInput()
 
   if (strcmp(command, "exit") == 0)
   {
+    freeMemory(*cache);
     exit(0);
   }
   else if (strcmp(command, "get") == 0)
@@ -279,7 +340,7 @@ void processInput()
     }
     int addressValue = atoi(parameter1);
 
-    char *output = get(gCache, addressValue);
+    char *output = get(*cache, addressValue);
     if (output != NULL)
     {
       printf("%s\n", output);
@@ -310,8 +371,7 @@ void processInput()
     }
     char *cacheValue = parameter2;
 
-    put(gCache, addressValue, cacheValue);
-    printf("Added at %d successfully\n", addressValue);
+    put(*cache, addressValue, cacheValue);
   }
   else if (strcmp(command, "createCache") == 0)
   {
@@ -326,7 +386,7 @@ void processInput()
       printf("Value too big\n");
       return;
     }
-    createCache(value);
+    createCache(cache, value);
   }
   else
   {
@@ -336,10 +396,10 @@ void processInput()
 
 int main()
 {
-
+  struct LRUCache *cache = NULL;
   while (1)
   {
-    processInput();
+    processInput(&cache);
   }
 
   return 0;
