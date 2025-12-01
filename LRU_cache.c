@@ -1,0 +1,406 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define STRING_LENGTH 30
+#define CACHE_CAPACITY 1000
+
+typedef struct QueueNode
+{
+  int key;
+  char value[STRING_LENGTH];
+  struct QueueNode *next;
+  struct QueueNode *previous;
+} QueueNode;
+
+typedef struct HashNode
+{
+  int key;
+  QueueNode *queueAddress;
+  struct HashNode *next;
+} HashNode;
+
+typedef struct LRUCache
+{
+  int capacity;
+  int currentSize;
+  QueueNode *front;
+  QueueNode *rear;
+  HashNode **hashMap;
+} LRUCache;
+
+int hashValue(LRUCache *cache, int key)
+{
+  return key % cache->capacity;
+}
+
+void insertToHashMap(LRUCache *cache, int key, QueueNode *value)
+{
+  int index = hashValue(cache, key);
+
+  // Checking for duplicate key
+  HashNode *hashHead = cache->hashMap[index];
+  while (hashHead != NULL)
+  {
+    if (hashHead->key == key)
+    {
+      printf("key %d already present in hash\n", key);
+      return;
+    }
+    hashHead = hashHead->next;
+  }
+
+  HashNode *newNode = malloc(sizeof(HashNode));
+  if (newNode == NULL)
+  {
+    printf("Memory allocation failed\n");
+    return;
+  }
+
+  newNode->key = key;
+  newNode->queueAddress = value;
+
+  //  Insert at head of bucket
+  newNode->next = cache->hashMap[index];
+  cache->hashMap[index] = newNode;
+}
+
+QueueNode *findInHashMap(LRUCache *cache, int key)
+{
+  int index = hashValue(cache, key);
+  HashNode *current = cache->hashMap[index];
+
+  while (current != NULL)
+  {
+    if (current->key == key)
+    {
+      return current->queueAddress;
+    }
+    current = current->next;
+  }
+  return NULL;
+}
+
+void deleteFromHashMap(LRUCache *cache, int key)
+{
+  int index = hashValue(cache, key);
+  HashNode *current = cache->hashMap[index];
+  HashNode *previous = NULL;
+
+  while (current != NULL)
+  {
+    if (current->key == key)
+    {
+      if (previous == NULL)
+      {
+        cache->hashMap[index] = current->next;
+      }
+      else
+      {
+        previous->next = current->next;
+      }
+      free(current);
+      return;
+    }
+    previous = current;
+    current = current->next;
+  }
+}
+
+void moveToHead(LRUCache *cache, QueueNode *node)
+{
+  QueueNode *head = cache->front;
+
+  if (head == node)
+  {
+    return;
+  }
+
+  // Detach from current position
+  if (node->previous)
+  {
+    node->previous->next = node->next;
+  }
+  if (node->next)
+  {
+    node->next->previous = node->previous;
+  }
+
+  // Update Rear if we moved the tail
+  if (cache->rear == node)
+  {
+    cache->rear = node->previous;
+    if (cache->rear)
+    {
+      cache->rear->next = NULL;
+    }
+  }
+
+  // Attach to Front
+  node->next = head;
+  node->previous = NULL;
+
+  if (cache->front)
+  {
+    cache->front->previous = node;
+  }
+  cache->front = node;
+}
+
+void deleteFromTail(LRUCache *cache)
+{
+  if (cache->rear == NULL)
+  {
+    return;
+  }
+
+  QueueNode *temp = cache->rear;
+
+  if (cache->front == cache->rear)
+  {
+    cache->front = NULL;
+    cache->rear = NULL;
+  }
+  else
+  {
+    cache->rear = cache->rear->previous;
+    cache->rear->next = NULL;
+  }
+
+  free(temp);
+  cache->currentSize--;
+}
+
+void put(LRUCache *cache, int key, char *value)
+{
+  // Check if cache exits
+  if (cache == NULL)
+  {
+    printf("Cache isn't Initialized\n");
+    return;
+  }
+
+  // Check if Key exists
+  QueueNode *existingNode = findInHashMap(cache, key);
+  if (existingNode != NULL)
+  {
+    strncpy(existingNode->value, value, STRING_LENGTH - 1);
+    existingNode->value[STRING_LENGTH - 1] = '\0';
+
+    moveToHead(cache, existingNode);
+    return;
+  }
+
+  // If Cache is Full, remove Tail (LRU)
+  if (cache->currentSize >= cache->capacity)
+  {
+    int tailKey = cache->rear->key;
+    deleteFromHashMap(cache, tailKey);
+    deleteFromTail(cache);
+  }
+
+  QueueNode *newNode = malloc(sizeof(QueueNode));
+  if (newNode == NULL)
+  {
+    printf("Memory allocation failed\n");
+    return;
+  }
+
+  newNode->key = key;
+  strncpy(newNode->value, value, STRING_LENGTH - 1);
+  newNode->value[STRING_LENGTH - 1] = '\0';
+  newNode->previous = NULL;
+  newNode->next = cache->front;
+
+  if (cache->front != NULL)
+  {
+    cache->front->previous = newNode;
+  }
+  cache->front = newNode;
+
+  if (cache->rear == NULL)
+  {
+    cache->rear = newNode;
+  }
+
+  insertToHashMap(cache, key, newNode);
+  cache->currentSize++;
+
+  printf("Added at %d successfully\n", key);
+}
+
+char *get(LRUCache *cache, int key)
+{
+  if (cache == NULL)
+  {
+    printf("Cache isn't Initialized\n");
+    return NULL;
+  }
+
+  QueueNode *node = findInHashMap(cache, key);
+
+  if (node != NULL)
+  {
+    // Accessed. Move to MRU (Head)
+    moveToHead(cache, node);
+    return node->value;
+  }
+  return NULL;
+}
+
+void createCache(LRUCache **cache, int capacity)
+{
+  if ((*cache) != NULL)
+  {
+    printf("Cache already initialized\n");
+    return;
+  }
+
+  (*cache) = malloc(sizeof(LRUCache));
+  if ((*cache) == NULL)
+  {
+    printf("Memory allocation failed\n");
+    return;
+  }
+
+  (*cache)->capacity = capacity;
+  (*cache)->currentSize = 0;
+  (*cache)->front = NULL;
+  (*cache)->rear = NULL;
+
+  (*cache)->hashMap = malloc(sizeof(HashNode *) * capacity);
+  if ((*cache)->hashMap == NULL)
+  {
+    printf("Memory allocation failed\n");
+    return;
+  }
+
+  for (int i = 0; i < capacity; i++)
+  {
+    (*cache)->hashMap[i] = NULL;
+  }
+}
+
+void freeMemory(LRUCache *cache)
+{
+  if (cache == NULL)
+    return;
+
+  // Free all QueueNodes
+  QueueNode *currentQ = cache->front;
+  while (currentQ != NULL)
+  {
+    QueueNode *temp = currentQ;
+    currentQ = currentQ->next;
+    free(temp);
+  }
+
+  // free all HashNodes
+  for (int i = 0; i < cache->capacity; i++)
+  {
+    HashNode *currentH = cache->hashMap[i];
+    while (currentH != NULL)
+    {
+      HashNode *temp = currentH;
+      currentH = currentH->next;
+      free(temp);
+    }
+  }
+
+  free(cache->hashMap);
+
+  free(cache);
+
+  printf("Memory successfully freed.\n");
+}
+
+void processInput(LRUCache **cache)
+{
+  printf("> ");
+
+  char input[STRING_LENGTH];
+  scanf("%[^\n]", input);
+  getchar();
+
+  char *command = strtok(input, " ");
+  char *parameter1 = strtok(NULL, " ");
+  char *parameter2 = strtok(NULL, " ");
+
+  if (strcmp(command, "exit") == 0)
+  {
+    freeMemory(*cache);
+    exit(0);
+  }
+  else if (strcmp(command, "get") == 0)
+  {
+    if (parameter1 == NULL)
+    {
+      printf("Invalid parameters\n");
+      return;
+    }
+    int addressValue = atoi(parameter1);
+
+    char *output = get(*cache, addressValue);
+    if (output != NULL)
+    {
+      printf("%s\n", output);
+    }
+    else
+    {
+      printf("NULL\n");
+    }
+  }
+  else if (strcmp(command, "put") == 0)
+  {
+    if (parameter1 == NULL)
+    {
+      printf("Invalid parameters\n");
+      return;
+    }
+    if (parameter2 == NULL)
+    {
+      printf("Invalid parameters\n");
+      return;
+    }
+
+    int addressValue = atoi(parameter1);
+    if (addressValue < 0 || addressValue >= CACHE_CAPACITY)
+    {
+      printf("Invalid cache address\n");
+      return;
+    }
+    char *cacheValue = parameter2;
+
+    put(*cache, addressValue, cacheValue);
+  }
+  else if (strcmp(command, "createCache") == 0)
+  {
+    if (parameter1 == NULL)
+    {
+      printf("Invalid parameters\n");
+      return;
+    }
+    int value = atoi(parameter1);
+    if (value >= CACHE_CAPACITY)
+    {
+      printf("Value too big\n");
+      return;
+    }
+    createCache(cache, value);
+  }
+  else
+  {
+    printf("%s is an Invalid command\n", command);
+  }
+}
+
+int main()
+{
+  struct LRUCache *cache = NULL;
+  while (1)
+  {
+    processInput(&cache);
+  }
+
+  return 0;
+}
