@@ -73,6 +73,7 @@ PCB *createProcess(int id, const char *name, int cpuBurst, int ioStart, int ioDu
   process->id = id;
   if (name == NULL)
   {
+    free(process);
     return NULL;
   }
   strncpy(process->processName, name, NAME_LIMIT);
@@ -88,9 +89,9 @@ PCB *createProcess(int id, const char *name, int cpuBurst, int ioStart, int ioDu
   return process;
 }
 
-void enQueue(Queue *que, PCB *processPointer)
+void enQueue(Queue *queue, PCB *processPointer)
 {
-  if (que == NULL)
+  if (queue == NULL)
   {
     printf("Invalid Queue\n");
     return;
@@ -108,53 +109,53 @@ void enQueue(Queue *que, PCB *processPointer)
   newNode->processPointer = processPointer;
 
   // Edge Case: No node in the queue
-  if (que->tail == NULL || que->head == NULL)
+  if (queue->tail == NULL || queue->head == NULL)
   {
-    que->head = newNode;
-    que->tail = newNode;
+    queue->head = newNode;
+    queue->tail = newNode;
     return;
   }
 
-  que->tail->next = newNode;
-  newNode->prev = que->tail;
-  que->tail = newNode;
+  queue->tail->next = newNode;
+  newNode->prev = queue->tail;
+  queue->tail = newNode;
 }
 
-PCB *deQueue(Queue *que)
+PCB *deQueue(Queue *queue)
 {
-  if (que == NULL)
+  if (queue == NULL)
   {
     printf("Invalid queue\n");
     return NULL;
   }
 
-  if (que->head == NULL)
+  if (queue->head == NULL)
   {
     printf("Queue already empty\n");
     return NULL;
   }
 
   // Single Node case
-  if (que->head == que->tail)
+  if (queue->head == queue->tail)
   {
-    PCB *processPointer = que->head->processPointer;
-    free(que->head);
-    que->head = NULL;
-    que->tail = NULL;
+    PCB *processPointer = queue->head->processPointer;
+    free(queue->head);
+    queue->head = NULL;
+    queue->tail = NULL;
     return processPointer;
   }
 
-  PCB *processPointer = que->head->processPointer;
+  PCB *processPointer = queue->head->processPointer;
 
-  QueueNode *nextNode = que->head->next;
+  QueueNode *nextNode = queue->head->next;
   nextNode->prev = NULL;
-  free(que->head);
-  que->head = nextNode;
+  free(queue->head);
+  queue->head = nextNode;
 
   return processPointer;
 }
 
-PCB *removeQueueNode(Queue *que, QueueNode *node)
+PCB *removeQueueNode(Queue *queue, QueueNode *node)
 {
   if (node == NULL)
   {
@@ -173,7 +174,7 @@ PCB *removeQueueNode(Queue *que, QueueNode *node)
   }
   else
   {
-    que->head = nextNode;
+    queue->head = nextNode;
   }
 
   if (nextNode != NULL)
@@ -182,22 +183,22 @@ PCB *removeQueueNode(Queue *que, QueueNode *node)
   }
   else
   {
-    que->tail = previousNode;
+    queue->tail = previousNode;
   }
 
   free(node);
   return process;
 }
 
-PCB *removeProcessFromQueue(Queue *que, PCB *process)
+PCB *removeProcessFromQueue(Queue *queue, PCB *process)
 {
-  if (que == NULL || process == NULL)
+  if (queue == NULL || process == NULL)
   {
     printf("Invalid process\n");
     return NULL;
   }
 
-  QueueNode *node = que->head;
+  QueueNode *node = queue->head;
   while (node != NULL && node->processPointer != process)
   {
     node = node->next;
@@ -207,28 +208,7 @@ PCB *removeProcessFromQueue(Queue *que, PCB *process)
   {
     return NULL;
   }
-  QueueNode *previousNode = node->prev;
-  QueueNode *nextNode = node->next;
-
-  if (previousNode != NULL)
-  {
-    previousNode->next = nextNode;
-  }
-  else
-  {
-    que->head = nextNode;
-  }
-  if (nextNode != NULL)
-  {
-    nextNode->prev = previousNode;
-  }
-  else
-  {
-    que->tail = previousNode;
-  }
-
-  free(node);
-  return process;
+  return removeQueueNode(queue, node);
 }
 
 int hashingFunction(int key, int size)
@@ -274,7 +254,6 @@ void insertInHash(int pid, Hash *map, PCB *process)
   {
     if (head->key == pid)
     {
-      printf("Updating value at pid %d\n", head->key);
       head->value = process;
       return;
     }
