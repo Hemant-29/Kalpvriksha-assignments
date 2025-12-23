@@ -27,21 +27,30 @@ int main()
 
   connect(clientSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
 
-  printf("1. Withdraw\n2. Deposit\n3. Display Balance\n4. Exit\n");
-  scanf("%d", &userChoice);
-
-  write(clientSocket, &userChoice, sizeof(userChoice));
-
-  if (userChoice == 1 || userChoice == 2)
+  while (1)
   {
-    printf("Enter amount: ");
-    scanf("%d", &transactionAmount);
-    write(clientSocket, &transactionAmount, sizeof(transactionAmount));
+    printf("\n1. Withdraw\n2. Deposit\n3. Display Balance\n4. Exit\nEnter choice: ");
+    scanf("%d", &userChoice);
+
+    // Handle Exit
+    if (userChoice == 4)
+    {
+      write(clientSocket, &userChoice, sizeof(userChoice));
+      break;
+    }
+
+    write(clientSocket, &userChoice, sizeof(userChoice));
+
+    if (userChoice == 1 || userChoice == 2)
+    {
+      printf("Enter amount: ");
+      scanf("%d", &transactionAmount);
+      write(clientSocket, &transactionAmount, sizeof(transactionAmount));
+    }
+
+    read(clientSocket, &accountBalance, sizeof(accountBalance));
+    printf("Current Balance: %d\n", accountBalance);
   }
-
-  read(clientSocket, &accountBalance, sizeof(accountBalance));
-  printf("Current Balance: %d\n", accountBalance);
-
   close(clientSocket);
   return 0;
 }

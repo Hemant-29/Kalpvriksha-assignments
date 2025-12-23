@@ -40,6 +40,15 @@ void printArray(int *array, int count)
 
 int main()
 {
+  // Create a new file
+  FILE *filePointer = fopen("msgqueuefile", "w");
+  if (filePointer == NULL)
+  {
+    perror("file creation failed");
+    exit(1);
+  }
+  fclose(filePointer);
+
   key_t messageQueueKey = ftok("msgqueuefile", 65);
   if (messageQueueKey == -1)
   {
