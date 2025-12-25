@@ -1,94 +1,91 @@
-  #include <stdio.h>
-  #include <stdlib.h>
-  #include <unistd.h>
-  #include <sys/wait.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include "../utils.h"
 
-  #define ARRAY_LENGTH 5
-
-  void sortIntegerArray(int integerArray[], int arraySize)
+void createPipe(int *pipeDescriptors)
+{
+  if (pipe(pipeDescriptors) == -1)
   {
-    for (int firstIndex = 0; firstIndex < arraySize - 1; firstIndex++)
-    {
-      for (int secondIndex = firstIndex + 1; secondIndex < arraySize; secondIndex++)
-      {
-        if (integerArray[firstIndex] > integerArray[secondIndex])
-        {
-          int temporaryValue = integerArray[firstIndex];
-          integerArray[firstIndex] = integerArray[secondIndex];
-          integerArray[secondIndex] = temporaryValue;
-        }
-      }
-    }
+    perror("Pipe creation failed");
+    exit(1);
+  }
+}
+
+void writeArrayToPipe(int fileDescriptor, int *integerArray, int arrayLength)
+{
+  ssize_t bytesWritten = write(fileDescriptor, integerArray, arrayLength * sizeof(int));
+  if (bytesWritten == -1)
+  {
+    perror("Pipe write failed");
+    exit(1);
+  }
+}
+
+void readArrayFromPipe(int fileDescriptor, int *integerArray, int arrayLength)
+{
+  ssize_t bytesRead = read(fileDescriptor, integerArray, arrayLength * sizeof(int));
+  if (bytesRead <= 0)
+  {
+    perror("Pipe read failed or EOF");
+    exit(1);
+  }
+}
+
+int main()
+{
+  int integerArray[ARRAY_LENGTH] = {7, 3, 8, 2, 5};
+
+  int parentToChildPipe[2];
+  int childToParentPipe[2];
+
+  createPipe(parentToChildPipe);
+  createPipe(childToParentPipe);
+
+  pid_t processId = fork();
+  if (processId < 0)
+  {
+    perror("fork failed");
+    exit(1);
   }
 
-  void printArray(int *array, int count)
+  if (processId == 0)
   {
-    for (int displayIndex = 0; displayIndex < count; displayIndex++)
-    {
-      printf("%d ", array[displayIndex]);
-    }
-    printf("\n");
+    // Close unused ends
+    close(parentToChildPipe[1]);
+    close(childToParentPipe[0]);
+
+    readArrayFromPipe(parentToChildPipe[0], integerArray, ARRAY_LENGTH);
+
+    sortIntegerArray(integerArray, ARRAY_LENGTH);
+
+    writeArrayToPipe(childToParentPipe[1], integerArray, ARRAY_LENGTH);
+
+    // Close the remaining ends
+    close(parentToChildPipe[0]);
+    close(childToParentPipe[1]);
+  }
+  else
+  {
+    close(parentToChildPipe[0]);
+    close(childToParentPipe[1]);
+
+    printf("Before Sorting: ");
+    printArray(integerArray, ARRAY_LENGTH);
+
+    writeArrayToPipe(parentToChildPipe[1], integerArray, ARRAY_LENGTH);
+
+    wait(NULL);
+
+    readArrayFromPipe(childToParentPipe[0], integerArray, ARRAY_LENGTH);
+
+    printf("After Sorting: ");
+    printArray(integerArray, ARRAY_LENGTH);
+
+    close(parentToChildPipe[1]);
+    close(childToParentPipe[0]);
   }
 
-  int main()
-  {
-    int integerArray[ARRAY_LENGTH] = {7, 3, 8, 2, 5};
-
-    int parentToChildPipe[2];
-    int childToParentPipe[2];
-
-    if (pipe(parentToChildPipe) == -1 || pipe(childToParentPipe) == -1)
-    {
-      perror("Pipe creation failed");
-      exit(1);
-    }
-
-    pid_t processId = fork();
-    if (processId < 0)
-    {
-      perror("fork failed");
-      exit(1);
-    }
-
-    if (processId == 0)
-    {
-      close(parentToChildPipe[1]);
-      close(childToParentPipe[0]);
-
-      ssize_t bytesRead = read(parentToChildPipe[0], integerArray, sizeof(integerArray));
-      if (bytesRead <= 0)
-      {
-        perror("Pipe read failed");
-        exit(1);
-      }
-
-      sortIntegerArray(integerArray, ARRAY_LENGTH);
-
-      write(childToParentPipe[1], integerArray, sizeof(integerArray));
-
-      close(parentToChildPipe[0]);
-      close(childToParentPipe[1]);
-    }
-    else
-    {
-      close(parentToChildPipe[0]);
-      close(childToParentPipe[1]);
-
-      printf("Before Sorting: ");
-      printArray(integerArray, ARRAY_LENGTH);
-
-      write(parentToChildPipe[1], integerArray, sizeof(integerArray));
-
-      wait(NULL);
-
-      read(childToParentPipe[0], integerArray, sizeof(integerArray));
-
-      printf("After Sorting: ");
-      printArray(integerArray, ARRAY_LENGTH);
-
-      close(parentToChildPipe[1]);
-      close(childToParentPipe[0]);
-    }
-
-    return 0;
-  }
+  return 0;
+}

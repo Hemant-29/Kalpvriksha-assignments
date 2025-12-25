@@ -2,39 +2,37 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include "../utils.h"
 
-#define ARRAY_LENGTH 5
-
-void sortIntegerArray(int integerArray[], int arraySize)
+void writeArrayToFile(const char *fileName, int *integerArray, int arrayLength)
 {
-  for (int firstIndex = 0; firstIndex < arraySize - 1; firstIndex++)
+  FILE *filePointer = fopen(fileName, "w");
+  if (filePointer == NULL)
   {
-    for (int secondIndex = firstIndex + 1; secondIndex < arraySize; secondIndex++)
-    {
-      if (integerArray[firstIndex] > integerArray[secondIndex])
-      {
-        int temporaryValue = integerArray[firstIndex];
-        integerArray[firstIndex] = integerArray[secondIndex];
-        integerArray[secondIndex] = temporaryValue;
-      }
-    }
+    perror("File open failed for writing");
+    exit(1);
   }
+  fwrite(integerArray, sizeof(int), arrayLength, filePointer);
+  fclose(filePointer);
 }
 
-void printArray(int *array, int count)
+void readArrayFromFile(const char *fileName, int *integerArray, int arrayLength)
 {
-  for (int displayIndex = 0; displayIndex < count; displayIndex++)
+  FILE *filePointer = fopen(fileName, "r");
+  if (filePointer == NULL)
   {
-    printf("%d ", array[displayIndex]);
+    perror("File open failed for reading");
+    exit(1);
   }
-  printf("\n");
+  fread(integerArray, sizeof(int), arrayLength, filePointer);
+  fclose(filePointer);
 }
 
 int main()
 {
   int integerArray[] = {5, 2, 9, 1, 3};
-  FILE *dataFilePointer;
   pid_t processId = fork();
+
   if (processId < 0)
   {
     perror("fork failed");
@@ -43,52 +41,27 @@ int main()
 
   if (processId == 0)
   {
-    sleep(1);
+    // CHILD PROCESS
+    sleep(1); // Wait for parent to write initial data
 
-    dataFilePointer = fopen("data.txt", "r");
-    if (dataFilePointer == NULL)
-    {
-      perror("File open failed");
-      exit(1);
-    }
-    fread(integerArray, sizeof(int), ARRAY_LENGTH, dataFilePointer);
-    fclose(dataFilePointer);
+    readArrayFromFile("data.txt", integerArray, ARRAY_LENGTH);
 
     sortIntegerArray(integerArray, ARRAY_LENGTH);
 
-    dataFilePointer = fopen("data.txt", "w");
-    if (dataFilePointer == NULL)
-    {
-      perror("File open failed");
-      exit(1);
-    }
-    fwrite(integerArray, sizeof(int), ARRAY_LENGTH, dataFilePointer);
-    fclose(dataFilePointer);
+    writeArrayToFile("data.txt", integerArray, ARRAY_LENGTH);
   }
   else
   {
-    dataFilePointer = fopen("data.txt", "w");
-    if (dataFilePointer == NULL)
-    {
-      perror("File open failed");
-      exit(1);
-    }
-    fwrite(integerArray, sizeof(int), ARRAY_LENGTH, dataFilePointer);
-    fclose(dataFilePointer);
+    // PARENT PROCESS
+
+    writeArrayToFile("data.txt", integerArray, ARRAY_LENGTH);
 
     printf("Before Sorting: ");
     printArray(integerArray, ARRAY_LENGTH);
 
-    wait(NULL);
+    wait(NULL); // Wait for child to finish sorting
 
-    dataFilePointer = fopen("data.txt", "r");
-    if (dataFilePointer == NULL)
-    {
-      perror("File open failed");
-      exit(1);
-    }
-    fread(integerArray, sizeof(int), ARRAY_LENGTH, dataFilePointer);
-    fclose(dataFilePointer);
+    readArrayFromFile("data.txt", integerArray, ARRAY_LENGTH);
 
     printf("After Sorting: ");
     printArray(integerArray, ARRAY_LENGTH);

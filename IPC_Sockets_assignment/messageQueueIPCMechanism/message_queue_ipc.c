@@ -4,14 +4,59 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/wait.h>
-
-#define ARRAY_LENGTH 5
+#include "../utils.h"
 
 struct MessagePacket
 {
   long messageType;
   int integerArray[ARRAY_LENGTH];
 };
+
+int setupMessageQueue(const char *filename, int projectId)
+{
+  FILE *filePointer = fopen(filename, "a");
+  if (filePointer == NULL)
+  {
+    perror("File creation failed");
+    exit(1);
+  }
+  fclose(filePointer);
+
+  key_t key = ftok(filename, projectId);
+  if (key == -1)
+  {
+    perror("ftok failed");
+    exit(1);
+  }
+
+  int queueId = msgget(key, 0666 | IPC_CREAT);
+  if (queueId == -1)
+  {
+    perror("msgget failed");
+    exit(1);
+  }
+  return queueId;
+}
+
+void sendMessage(int queueId, struct MessagePacket *packet)
+{
+  // We send only the size of the array, not the full struct size
+  if (msgsnd(queueId, packet, sizeof(packet->integerArray), 0) == -1)
+  {
+    perror("msgsnd failed");
+    exit(1);
+  }
+}
+
+void receiveMessage(int queueId, struct MessagePacket *packet, long messageType)
+{
+  // 4th arg (messageType) lets us filter which message to read
+  if (msgrcv(queueId, packet, sizeof(packet->integerArray), messageType, 0) == -1)
+  {
+    perror("msgrcv failed");
+    exit(1);
+  }
+}
 
 void sortIntegerArray(int integerArray[], int arraySize)
 {
@@ -40,28 +85,7 @@ void printArray(int *array, int count)
 
 int main()
 {
-  // Create a new file
-  FILE *filePointer = fopen("msgqueuefile", "w");
-  if (filePointer == NULL)
-  {
-    perror("file creation failed");
-    exit(1);
-  }
-  fclose(filePointer);
-
-  key_t messageQueueKey = ftok("msgqueuefile", 65);
-  if (messageQueueKey == -1)
-  {
-    perror("ftok failed");
-    exit(1);
-  }
-
-  int messageQueueId = msgget(messageQueueKey, 0666 | IPC_CREAT);
-  if (messageQueueId == -1)
-  {
-    perror("msgget failed");
-    exit(1);
-  }
+  int messageQueueId = setupMessageQueue("msgqueuefile", 65);
 
   struct MessagePacket message;
   message.messageType = 1;
@@ -77,31 +101,34 @@ int main()
 
   if (processId == 0)
   {
-    msgrcv(messageQueueId, &message, sizeof(message.integerArray), 1, 0);
+    receiveMessage(messageQueueId, &message, 1);
 
     sortIntegerArray(message.integerArray, ARRAY_LENGTH);
 
-    msgsnd(messageQueueId, &message, sizeof(message.integerArray), 0);
+    sendMessage(messageQueueId, &message);
   }
   else
   {
     printf("Before Sorting: ");
     printArray(integerArray, ARRAY_LENGTH);
 
+    // Prepare data
     for (int copyIndex = 0; copyIndex < ARRAY_LENGTH; copyIndex++)
     {
       message.integerArray[copyIndex] = integerArray[copyIndex];
     }
 
-    msgsnd(messageQueueId, &message, sizeof(message.integerArray), 0);
+    // Send to child
+    sendMessage(messageQueueId, &message);
 
     wait(NULL);
 
-    msgrcv(messageQueueId, &message, sizeof(message.integerArray), 1, 0);
+    receiveMessage(messageQueueId, &message, 1);
 
     printf("After Sorting: ");
     printArray(message.integerArray, ARRAY_LENGTH);
 
+    // Cleanup
     msgctl(messageQueueId, IPC_RMID, NULL);
   }
 
